@@ -501,6 +501,7 @@
 
             const tabel = $('#tabelPesanan').DataTable({
                 dom: 'lfrtip',
+                stateSave: false,
                 scrollX: false,
                 pageLength: 10,
                 lengthMenu: [10, 25, 50, 100],
@@ -549,9 +550,7 @@
                     if (statusDipilih === 'Semua') {
                         tabel.column(7).search('').draw();
                     } else {
-                        tabel.column(7)
-                            .search('^' + statusDipilih + '$', true, false)
-                            .draw();
+                        tabel.column(7).search(statusDipilih, false, false).draw();
                     }
 
                 });
