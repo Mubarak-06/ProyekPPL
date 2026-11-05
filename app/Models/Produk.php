@@ -33,4 +33,9 @@ class Produk extends Model
     {
         return $this->hasMany(DetailPesanan::class, 'produk_id');
     }
+
+    public function material()
+    {
+        return $this->belongsTo(\App\Models\Material::class, 'material_id');
+    }
 }

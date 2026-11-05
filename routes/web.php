@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\ProdukController;//ini gsn mehubung akn route lwn controller produk
 use App\Http\Controllers\Admin\DataMasterController;
 use App\Http\Controllers\Admin\PesananController;
+use App\Http\Controllers\Admin\PengirimanController;
 use Illuminate\Support\Facades\Route;
 
 //ini gsn halaman awal
@@ -29,8 +30,10 @@ Route::get('/admin/produk/tambah', [ProdukController::class, 'create'])
 Route::post('/admin/produk/simpan', [ProdukController::class, 'store'])
     ->name('admin.produk.store');
 
-Route::get('/admin/produk/dropdown/{kategoriId}',
-    [ProdukController::class, 'getDropdownData'])
+Route::get(
+    '/admin/produk/dropdown/{kategoriId}',
+    [ProdukController::class, 'getDropdownData']
+)
     ->whereNumber('kategoriId')
     ->name('admin.produk.dropdown');
 
@@ -89,3 +92,87 @@ Route::patch('/admin/pesanan/{id}/status', [PesananController::class, 'updateSta
 
 Route::patch('/admin/pesanan/{id}/tolak', [PesananController::class, 'tolak'])
     ->name('admin.pesanan.tolak');
+
+Route::get('/admin/pengiriman', [PengirimanController::class, 'index'])
+    ->name('admin.pengiriman.index');
+
+Route::get('/admin/pengiriman/data-master', [PengirimanController::class, 'dataMaster'])
+    ->name('admin.pengiriman.dataMaster');
+
+Route::post(
+    '/admin/pengiriman/data-master/provinsi',
+    [PengirimanController::class, 'storeProvinsi']
+)->name('admin.pengiriman.provinsi.store');
+
+Route::put(
+    '/admin/pengiriman/data-master/provinsi/{id}',
+    [PengirimanController::class, 'updateProvinsi']
+)->name('admin.pengiriman.provinsi.update');
+
+Route::delete(
+    '/admin/pengiriman/data-master/provinsi/{id}',
+    [PengirimanController::class, 'destroyProvinsi']
+)->name('admin.pengiriman.provinsi.destroy');
+
+Route::post(
+    '/admin/pengiriman/data-master/kota',
+    [PengirimanController::class, 'storeKota']
+)->name('admin.pengiriman.kota.store');
+
+Route::put(
+    '/admin/pengiriman/data-master/kota/{id}',
+    [PengirimanController::class, 'updateKota']
+)->name('admin.pengiriman.kota.update');
+
+Route::delete(
+    '/admin/pengiriman/data-master/kota/{id}',
+    [PengirimanController::class, 'destroyKota']
+)->name('admin.pengiriman.kota.destroy');
+
+Route::post(
+    '/admin/pengiriman/data-master/kecamatan',
+    [PengirimanController::class, 'storeKecamatan']
+)->name('admin.pengiriman.kecamatan.store');
+
+Route::put(
+    '/admin/pengiriman/data-master/kecamatan/{id}',
+    [PengirimanController::class, 'updateKecamatan']
+)->name('admin.pengiriman.kecamatan.update');
+
+Route::delete(
+    '/admin/pengiriman/data-master/kecamatan/{id}',
+    [PengirimanController::class, 'destroyKecamatan']
+)->name('admin.pengiriman.kecamatan.destroy');
+
+Route::post(
+    '/admin/pengiriman/data-master/kelurahan',
+    [PengirimanController::class, 'storeKelurahan']
+)->name('admin.pengiriman.kelurahan.store');
+
+Route::put(
+    '/admin/pengiriman/data-master/kelurahan/{id}',
+    [PengirimanController::class, 'updateKelurahan']
+)->name('admin.pengiriman.kelurahan.update');
+
+Route::delete(
+    '/admin/pengiriman/data-master/kelurahan/{id}',
+    [PengirimanController::class, 'destroyKelurahan']
+)->name('admin.pengiriman.kelurahan.destroy');
+
+Route::post(
+    '/admin/pengiriman/data-master/ongkir',
+    [PengirimanController::class, 'storeOngkir']
+)->name('admin.pengiriman.ongkir.store');
+
+Route::put(
+    '/admin/pengiriman/data-master/ongkir/{id}',
+    [PengirimanController::class, 'updateOngkir']
+)->name('admin.pengiriman.ongkir.update');
+
+Route::delete(
+    '/admin/pengiriman/data-master/ongkir/{id}',
+    [PengirimanController::class, 'destroyOngkir']
+)->name('admin.pengiriman.ongkir.destroy');
+
+Route::get('/admin/pengiriman/{id}', [PengirimanController::class, 'show'])
+    ->name('admin.pengiriman.show');

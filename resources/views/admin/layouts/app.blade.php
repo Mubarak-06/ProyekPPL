@@ -169,7 +169,8 @@
                 Pesanan
             </a>
 
-            <a href="#">
+            <a href="{{ route('admin.pengiriman.index') }}"
+                class="{{ request()->routeIs('admin.pengiriman.*') ? 'active' : '' }}">
                 <i class="bi bi-truck"></i>
                 Pengiriman
             </a>
