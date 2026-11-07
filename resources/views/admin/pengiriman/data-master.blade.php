@@ -7,14 +7,14 @@
 
     <style>
         .dm-title {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 700;
             color: #111827;
             margin: 0;
         }
 
         .dm-breadcrumb {
-            font-size: 12px;
+            font-size: 11px;
             color: #64748B;
             margin: 5px 0 20px;
         }

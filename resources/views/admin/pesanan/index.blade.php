@@ -3,6 +3,7 @@
 @section('title', 'Pesanan')
 
 @push('styles')
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.min.css">
     <style>
         .pesanan-title {
             font-size: 22px;
@@ -216,135 +217,87 @@
             }
         }
 
-        /* Tampilan DataTables Pesanan */
-        .pesanan-card .dataTables_wrapper {
+        #tabelPesanan_wrapper {
             font-family: 'Poppins', sans-serif;
             font-size: 11px;
             color: #64748B;
         }
 
-        .pesanan-card .dataTables_length {
-            float: left;
-            margin-bottom: 20px;
+        #tabelPesanan thead th {
+            font-size: 10px !important;
+            font-weight: 600 !important;
+            color: #64748B !important;
+            text-transform: uppercase;
+            padding: 14px 12px !important;
+            border-bottom: 1px solid #E2E8F0 !important;
         }
 
-        .pesanan-card .dataTables_filter {
-            float: right;
-            margin-bottom: 20px;
-        }
-
-        .pesanan-card .dataTables_length label,
-        .pesanan-card .dataTables_filter label {
+        #tabelPesanan tbody td {
             font-size: 11px;
-            font-weight: 400;
-            color: #64748B;
+            padding: 12px !important;
+            color: #334155;
+            border-bottom: 1px solid #F1F5F9 !important;
         }
 
-        .pesanan-card .dataTables_length select {
-            width: 70px;
-            padding: 8px 10px;
-            margin: 0 5px;
-            border: 1px solid #E2E8F0;
-            border-radius: 6px;
+        #tabelPesanan_wrapper .dt-length,
+        #tabelPesanan_wrapper .dt-search {
+            margin-bottom: 18px;
+            font-size: 11px;
+        }
+
+        #tabelPesanan_wrapper .dt-input {
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 6px !important;
+            padding: 7px 10px !important;
+            font-family: 'Poppins', sans-serif;
+            font-size: 11px;
+            color: #64748B;
             background: #FFFFFF;
-            color: #64748B;
-            font-family: 'Poppins', sans-serif;
-            font-size: 11px;
         }
 
-        .pesanan-card .dataTables_filter input {
-            width: 220px;
-            padding: 9px 12px;
-            margin-left: 8px;
-            border: 1px solid #E2E8F0;
-            border-radius: 6px;
-            outline: none;
-            font-family: 'Poppins', sans-serif;
-            font-size: 11px;
+        #tabelPesanan_wrapper .dt-length select {
+            min-width: 65px;
         }
 
-        .pesanan-card .dataTables_filter input:focus {
-            border-color: #008A50;
+        #tabelPesanan_wrapper .dt-search input {
+            width: 200px;
         }
 
-        .pesanan-card table.dataTable {
-            width: 100% !important;
-            border-collapse: collapse !important;
-            border-bottom: none !important;
-        }
-
-        .pesanan-card table.dataTable thead th {
-            border-bottom: 1px solid #E2E8F0;
-            padding: 12px;
-            font-size: 11px;
-        }
-
-        .pesanan-card table.dataTable tbody td {
-            padding: 12px;
-            border-bottom: 1px solid #E2E8F0;
-            font-size: 11px;
-        }
-
-        .pesanan-card .dataTables_info {
-            float: left;
-            padding-top: 20px !important;
-            font-size: 11px;
-            color: #64748B;
-        }
-
-        .pesanan-card .dataTables_paginate {
-            float: right;
-            padding-top: 15px !important;
-        }
-
-        .pesanan-card .dataTables_paginate .paginate_button {
-            padding: 6px 11px !important;
-            margin-left: 4px !important;
+        #tabelPesanan_wrapper .dt-paging .dt-paging-button {
             border: 1px solid #E2E8F0 !important;
             border-radius: 5px !important;
             background: #FFFFFF !important;
             color: #64748B !important;
             font-size: 11px;
+            margin-left: 4px;
         }
 
-        .pesanan-card .dataTables_paginate .paginate_button.current,
-        .pesanan-card .dataTables_paginate .paginate_button.current:hover {
+        #tabelPesanan_wrapper .dt-paging .dt-paging-button.current,
+        #tabelPesanan_wrapper .dt-paging .dt-paging-button.current:hover {
             background: #008A50 !important;
             border-color: #008A50 !important;
             color: #FFFFFF !important;
         }
 
-        .pesanan-card .dataTables_paginate .paginate_button:hover:not(.current) {
-            background: #F1F5F9 !important;
+        #tabelPesanan_wrapper .dt-paging .dt-paging-button:hover:not(.current):not(.disabled) {
+            background: #ECFDF5 !important;
             color: #008A50 !important;
+            border-color: #A7F3D0 !important;
         }
 
-        .pesanan-card .dataTables_length select {
-            width: 70px;
-            height: 36px;
-            border: 1px solid #E2E8F0;
-            border-radius: 6px;
-            outline: none;
-            box-shadow: none;
+        #tabelPesanan_wrapper .dt-info {
+            font-size: 11px;
+            color: #64748B;
         }
 
-        .pesanan-card .dataTables_length select:focus {
-            border-color: #008A50;
+        #tabelPesanan_wrapper .dt-layout-row:last-child {
+            margin-top: 14px;
         }
 
         @media (max-width: 768px) {
-
-            .pesanan-card .dataTables_length,
-            .pesanan-card .dataTables_filter,
-            .pesanan-card .dataTables_info,
-            .pesanan-card .dataTables_paginate {
-                float: none;
-                text-align: left;
-            }
-
-            .pesanan-card .dataTables_filter input {
+            #tabelPesanan_wrapper .dt-search input {
+                width: 160px;
                 max-width: 100%;
-                width: 180px;
             }
         }
     </style>
@@ -494,13 +447,12 @@
 
 @push('scripts')
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
-    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/2.3.4/js/dataTables.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 
             const tabel = $('#tabelPesanan').DataTable({
-                dom: 'lfrtip',
+                pagingType: 'full_numbers',
                 stateSave: false,
                 scrollX: false,
                 pageLength: 10,
@@ -519,8 +471,10 @@
                     info: 'Showing _START_ to _END_ of _TOTAL_ entries',
                     infoEmpty: 'Showing 0 to 0 of 0 entries',
                     paginate: {
+                        first: '«',
                         previous: '‹',
-                        next: '›'
+                        next: '›',
+                        last: '»'
                     }
                 },
 

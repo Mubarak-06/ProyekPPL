@@ -3,7 +3,7 @@
 @section('title', 'Pengiriman')
 
 @push('styles')
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.min.css">
     <style>
         .pengiriman-title {
             font-size: 22px;
@@ -197,6 +197,86 @@
             overflow-x: auto;
         }
 
+        #tabelPengiriman_wrapper {
+            font-family: 'Poppins', sans-serif;
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        #tabelPengiriman thead th {
+            padding: 14px 12px !important;
+            font-size: 10px !important;
+            font-weight: 600 !important;
+            color: #64748B !important;
+            text-transform: uppercase;
+            border-bottom: 1px solid #E2E8F0 !important;
+            white-space: nowrap;
+        }
+
+        #tabelPengiriman tbody td {
+            padding: 12px !important;
+            font-size: 11px;
+            color: #334155;
+            vertical-align: middle;
+            border-bottom: 1px solid #F1F5F9 !important;
+        }
+
+        #tabelPengiriman_wrapper .dt-length {
+            margin-bottom: 18px;
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        #tabelPengiriman_wrapper .dt-input {
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 6px !important;
+            padding: 7px 10px !important;
+            background: #FFFFFF !important;
+            color: #64748B !important;
+            font-family: 'Poppins', sans-serif;
+            font-size: 11px;
+            outline: none;
+        }
+
+        #tabelPengiriman_wrapper .dt-length select {
+            min-width: 65px;
+        }
+
+        #tabelPengiriman_wrapper .dt-input:focus {
+            border-color: #008A50 !important;
+        }
+
+        #tabelPengiriman_wrapper .dt-paging .dt-paging-button {
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 5px !important;
+            background: #FFFFFF !important;
+            color: #64748B !important;
+            font-size: 11px;
+            margin-left: 4px;
+        }
+
+        #tabelPengiriman_wrapper .dt-paging .dt-paging-button.current,
+        #tabelPengiriman_wrapper .dt-paging .dt-paging-button.current:hover {
+            background: #008A50 !important;
+            color: #FFFFFF !important;
+            border-color: #008A50 !important;
+        }
+
+        #tabelPengiriman_wrapper .dt-paging .dt-paging-button:hover:not(.current):not(.disabled) {
+            background: #ECFDF5 !important;
+            color: #008A50 !important;
+            border-color: #A7F3D0 !important;
+        }
+
+        #tabelPengiriman_wrapper .dt-info {
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        #tabelPengiriman_wrapper .dt-layout-row:last-child {
+            margin-top: 14px;
+        }
+
         @media (max-width: 900px) {
             .pengiriman-filter {
                 grid-template-columns: 1fr 1fr;
@@ -328,77 +408,99 @@
 @endsection
 
 @push('scripts')
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.3.4/js/dataTables.min.js"></script>
 
-            const tabel = $('#tabelPengiriman').DataTable({
-                dom: 'lrtip',
-                pageLength: 10,
-                lengthMenu: [10, 25, 50, 100],
-                ordering: true,
-                searching: true,
-                paging: true,
-                info: true,
-                autoWidth: false,
-                stateSave: false,
+<script>
+    $(document).ready(function () {
 
-                columnDefs: [
-                    {
-                        targets: [0, 8],
-                        orderable: false
-                    }
-                ],
+        const tabel = $('#tabelPengiriman').DataTable({
+            layout: {
+                topStart: 'pageLength',
+                topEnd: null,
+                bottomStart: 'info',
+                bottomEnd: 'paging'
+            },
 
-                language: {
-                    emptyTable: 'Belum ada data pengiriman.',
-                    zeroRecords: 'Tidak ada pengiriman yang sesuai.',
-                    lengthMenu: 'Show _MENU_ entries',
-                    info: 'Showing _START_ to _END_ of _TOTAL_ entries',
-                    infoEmpty: 'Showing 0 to 0 of 0 entries',
-                    paginate: {
-                        previous: '‹',
-                        next: '›'
-                    }
+            pageLength: 10,
+            lengthMenu: [10, 25, 50, 100],
+
+            ordering: true,
+            searching: true,
+            paging: true,
+            info: true,
+            autoWidth: false,
+            stateSave: false,
+
+            columnDefs: [
+                {
+                    targets: [0, 8],
+                    orderable: false
                 }
-            });
+            ],
 
-            $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-                if (settings.nTable.id !== 'tabelPengiriman') {
-                    return true;
+            language: {
+                emptyTable: 'Belum ada data pengiriman.',
+                zeroRecords: 'Tidak ada pengiriman yang sesuai.',
+                lengthMenu: '_MENU_ entries per page',
+                info: 'Showing _START_ to _END_ of _TOTAL_ entries',
+                infoEmpty: 'Showing 0 to 0 of 0 entries',
+                paginate: {
+                    first: '«',
+                    previous: '‹',
+                    next: '›',
+                    last: '»'
                 }
+            },
 
-                const tanggalDipilih = document.getElementById('tanggalPengiriman').value;
-
-                if (!tanggalDipilih) {
-                    return true;
-                }
-
-                const baris = settings.aoData[dataIndex].nTr;
-                const tanggalPengiriman = baris.getAttribute('data-tanggal');
-
-                return tanggalPengiriman === tanggalDipilih;
-            });
-
-            const form = document.getElementById('filterPengiriman');
-
-            form.addEventListener('submit', function (event) {
-                event.preventDefault();
-
-                const status = document.getElementById('statusPengiriman').value;
-                const keyword = document.getElementById('cariPengiriman').value.trim();
-
-                if (status === '') {
-                    tabel.column(7).search('');
-                } else {
-                    tabel.column(7).search(status, false, false);
-                }
-
-                tabel.search(keyword).draw();
-            });
-
+            pagingType: 'full_numbers'
         });
-    </script>
+
+        // Filter tanggal pengiriman
+        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+
+            if (settings.nTable.id !== 'tabelPengiriman') {
+                return true;
+            }
+
+            const tanggalDipilih =
+                document.getElementById('tanggalPengiriman').value;
+
+            if (!tanggalDipilih) {
+                return true;
+            }
+
+            const baris = settings.aoData[dataIndex].nTr;
+
+            const tanggalPengiriman =
+                baris.getAttribute('data-tanggal');
+
+            return tanggalPengiriman === tanggalDipilih;
+        });
+
+        // Filter status dan pencarian
+        const form = document.getElementById('filterPengiriman');
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            const status =
+                document.getElementById('statusPengiriman').value;
+
+            const keyword =
+                document.getElementById('cariPengiriman').value.trim();
+
+            if (status === '') {
+                tabel.column(7).search('');
+            } else {
+                tabel.column(7).search(status, false, false);
+            }
+
+            tabel.search(keyword).draw();
+        });
+
+    });
+</script>
+
 @endpush

@@ -4,6 +4,8 @@ use App\Http\Controllers\Admin\ProdukController;//ini gsn mehubung akn route lwn
 use App\Http\Controllers\Admin\DataMasterController;
 use App\Http\Controllers\Admin\PesananController;
 use App\Http\Controllers\Admin\PengirimanController;
+use App\Http\Controllers\Admin\PembayaranController;
+use App\Http\Controllers\Admin\LaporanController;
 use Illuminate\Support\Facades\Route;
 
 //ini gsn halaman awal
@@ -176,3 +178,33 @@ Route::delete(
 
 Route::get('/admin/pengiriman/{id}', [PengirimanController::class, 'show'])
     ->name('admin.pengiriman.show');
+
+Route::get('/admin/pembayaran', [PembayaranController::class, 'index'])
+    ->name('admin.pembayaran.index');
+
+Route::get('/admin/pembayaran/metode', [PembayaranController::class, 'metode'])
+    ->name('admin.pembayaran.metode');
+
+Route::get('/admin/pembayaran/metode/{id}/edit', [PembayaranController::class, 'editMetode'])
+    ->name('admin.pembayaran.metode.edit');
+
+Route::put('/admin/pembayaran/metode/{id}', [PembayaranController::class, 'updateMetode'])
+    ->name('admin.pembayaran.metode.update');
+
+Route::delete('/admin/pembayaran/metode/{id}', [PembayaranController::class, 'destroyMetode'])
+    ->name('admin.pembayaran.metode.destroy');
+
+Route::get('/admin/pembayaran/{id}', [PembayaranController::class, 'show'])
+    ->name('admin.pembayaran.show');
+
+Route::post('/admin/pembayaran/metode', [PembayaranController::class, 'storeMetode'])
+    ->name('admin.pembayaran.metode.store');
+
+Route::get('/admin/laporan', [LaporanController::class, 'index'])
+    ->name('admin.laporan.index');
+
+Route::get('/admin/laporan/export/pdf', [LaporanController::class, 'exportPdf'])
+    ->name('admin.laporan.export.pdf');
+
+Route::get('/admin/laporan/export/excel', [LaporanController::class, 'exportExcel'])
+    ->name('admin.laporan.export.excel');

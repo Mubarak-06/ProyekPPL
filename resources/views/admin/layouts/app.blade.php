@@ -175,12 +175,14 @@
                 Pengiriman
             </a>
 
-            <a href="#">
+            <a href="{{ route('admin.pembayaran.index') }}"
+                class="{{ request()->routeIs('admin.pembayaran.*') ? 'active' : '' }}">
                 <i class="bi bi-credit-card"></i>
                 Pembayaran
             </a>
 
-            <a href="#">
+            <a href="{{ route('admin.laporan.index') }}"
+                class="{{ request()->routeIs('admin.laporan.*') ? 'active' : '' }}">
                 <i class="bi bi-bar-chart"></i>
                 Laporan
             </a>
