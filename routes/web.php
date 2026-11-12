@@ -6,11 +6,16 @@ use App\Http\Controllers\Admin\PesananController;
 use App\Http\Controllers\Admin\PengirimanController;
 use App\Http\Controllers\Admin\PembayaranController;
 use App\Http\Controllers\Admin\LaporanController;
+use App\Http\Controllers\Pelanggan\ProdukController as ProdukPelangganController;
+use App\Http\Middleware\BahasaPelanggan;
 use Illuminate\Support\Facades\Route;
 
 //ini gsn halaman awal
-Route::get('/', function () {
-    return view('welcome');
+Route::middleware(BahasaPelanggan::class)->group(function () {
+    Route::get('/', [ProdukPelangganController::class, 'beranda'])
+        ->name('pelanggan.beranda');
+
+    require __DIR__.'/pelanggan.php';
 });
 
 //yg ini gsn halaman dashboard admin

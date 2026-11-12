@@ -6,6 +6,19 @@ use Illuminate\Database\Eloquent\Model;
 
 class Pesanan extends Model
 {
+    protected static function booted(): void
+    {
+        static::updated(function (Pesanan $pesanan) {
+            if ($pesanan->wasChanged('status_pesanan') && $pesanan->status_pesanan === 'Ditolak'
+                && in_array($pesanan->getOriginal('status_pesanan'), ['Menunggu', 'Diproses'], true)) {
+                // Penolakan admin mengembalikan stok yang dipesan saat checkout.
+                foreach ($pesanan->detailPesanan()->orderBy('produk_id')->get() as $detail) {
+                    Produk::whereKey($detail->produk_id)->increment('stok', $detail->jumlah);
+                }
+            }
+        });
+    }
+
     protected $table = 'pesanan';
 
     protected $fillable = [

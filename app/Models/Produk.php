@@ -38,4 +38,19 @@ class Produk extends Model
     {
         return $this->belongsTo(\App\Models\Material::class, 'material_id');
     }
+
+    public function kategori()
+    {
+        return $this->belongsTo(Kategori::class, 'kategori_id');
+    }
+
+    public function satuan()
+    {
+        return $this->belongsTo(Satuan::class, 'satuan_id');
+    }
+
+    public function gambarProduk()
+    {
+        return $this->hasMany(GambarProduk::class, 'produk_id')->orderBy('urutan');
+    }
 }

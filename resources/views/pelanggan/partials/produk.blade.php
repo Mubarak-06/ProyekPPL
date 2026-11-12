@@ -1,0 +1,18 @@
+<article class="kartu-produk">
+    @if(!empty($labelProduk))
+        <span class="badge-produk"><i class="bi bi-fire" aria-hidden="true"></i> {{ $labelProduk }}</span>
+    @endif
+    <a class="tautan-produk" href="{{ route('pelanggan.produk.show', $item) }}">
+        <div class="foto-produk">
+            @include('pelanggan.partials.gambar', ['path' => $item->gambar ?: $item->gambarProduk->first()?->path_gambar, 'nama' => $item->nama_produk])
+        </div>
+        <h3>{{ $item->nama_produk }}</h3>
+    </a>
+    <p class="harga">Rp {{ number_format($item->harga, 0, ',', '.') }}</p>
+    <form class="aksi-produk" action="{{ route('pelanggan.keranjang.store', $item) }}" method="POST">
+        @csrf
+        <input type="hidden" name="jumlah" value="1">
+        <button type="submit" name="beli" value="1" @disabled($item->stok < 1)>@if(!empty($labelProduk))<i class="bi bi-cart3" aria-hidden="true"></i>@endif Beli Sekarang</button>
+        <button class="tombol-outline" type="submit" @disabled($item->stok < 1)><i class="bi bi-cart3" aria-hidden="true"></i> + Keranjang</button>
+    </form>
+</article>

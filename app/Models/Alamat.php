@@ -23,6 +23,11 @@ class Alamat extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function kelurahan()
+    {
+        return $this->belongsTo(Kelurahan::class, 'kelurahan_id');
+    }
+
     // Relasi ke pesanan
     public function pesanan()
     {

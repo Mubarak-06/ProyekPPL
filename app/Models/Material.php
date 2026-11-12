@@ -11,4 +11,9 @@ class Material extends Model
     protected $fillable = [
         'nama_material',
     ];
+
+    public function produk()
+    {
+        return $this->hasMany(Produk::class, 'material_id');
+    }
 }
