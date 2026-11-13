@@ -134,19 +134,24 @@
     background: #fff;
 }
 .navbar-pelanggan {
+    --jarak-navbar: 32px;
     max-width: 1440px;
     min-height: 80px;
     padding: 0 32px;
     margin: auto;
     display: flex;
     align-items: center;
-    gap: 32px;
+    gap: var(--jarak-navbar);
 }
 .brand {
     font-size: 24px;
     font-weight: 700;
     letter-spacing: -1px;
     white-space: nowrap;
+}
+.navbar-pelanggan .brand {
+    font-size: 24px;
+    font-weight: 800;
 }
 .menu-utama {
     display: flex;
@@ -542,14 +547,6 @@ ul.pesan {
     padding: 4px 8px;
     font-size: 13px;
 }
-.beranda .brand {
-    font-size: 24px;
-    font-weight: 800;
-}
-.beranda .menu-utama a {
-    font-size: 15px;
-    font-weight: 600;
-}
 .beranda .menu-akun {
     font-size: 13px;
 }
@@ -567,13 +564,11 @@ ul.pesan {
     .beranda .navbar-pelanggan {
         height: 74px;
         min-height: 74px;
-        gap: 32px;
+        --jarak-navbar: 32px;
     }
-    .beranda .menu-utama {
-        gap: 32px;
-    }
-    .beranda .brand {
-        margin-right: 10px;
+    .navbar-pelanggan .brand {
+        /* Jarak logo-menu Beranda: gap 32px + margin 10px. */
+        margin-right: calc(42px - var(--jarak-navbar));
     }
     .beranda .pencarian {
         margin-right: 12px;
@@ -833,7 +828,6 @@ ul.pesan {
 .keranjang .ikon-keranjang { color: var(--hijau); }
 .keranjang .pencarian input { font-size: 14px; }
 @media (min-width: 1151px) {
-    .keranjang .brand { margin-right: 14px; }
     .keranjang .pencarian { margin-right: 6px; }
     .keranjang .menu-akun { gap: 36px; }
 }
@@ -1126,9 +1120,6 @@ ul.pesan {
 .halaman-tentang nav[aria-label='Breadcrumb'] a { color: #64748b; }
 .halaman-tentang nav[aria-label='Breadcrumb'] [aria-current] { color: var(--navy); }
 .halaman-tentang nav[aria-label='Breadcrumb'] .bi { color: #8a9db7; font-size: 11px; }
-.tentang .menu-utama a { gap: 8px; }
-.tentang .menu-utama a.aktif { font-weight: 600; }
-.tentang .menu-utama .bi { color: #64748b; font-size: 12px; }
 .tentang .pencarian input { font-size: 14px; }
 .tentang-toko {
     display: grid;
@@ -1265,7 +1256,7 @@ ul.pesan {
 
 @media (max-width: 1150px) {
     .navbar-pelanggan {
-        gap: 20px;
+        --jarak-navbar: 20px;
         padding: 0 24px;
     }
     .brand {

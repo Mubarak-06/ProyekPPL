@@ -48,6 +48,20 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
+        if (Auth::user()->is_admin) {
+            $request->session()->forget('url.intended');
+
+            return redirect()->route('admin.dashboard');
+        }
+
+        // Percobaan membuka admin sebelum login tidak mengalihkan pelanggan ke 403.
+        $intended = $request->session()->get('url.intended');
+        $adminPath = Str::beforeLast(parse_url(route('admin.dashboard'), PHP_URL_PATH), '/');
+        $intendedPath = is_string($intended) ? parse_url($intended, PHP_URL_PATH) : null;
+        if (is_string($intendedPath) && ($intendedPath === $adminPath || Str::startsWith($intendedPath, $adminPath.'/'))) {
+            $request->session()->forget('url.intended');
+        }
+
         return redirect()->intended(route('pelanggan.profil'));
     }
 
@@ -67,10 +81,11 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        $isAdmin = $request->user()?->is_admin;
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('pelanggan.beranda');
+        return redirect()->route($isAdmin ? 'login' : 'pelanggan.beranda');
     }
 }

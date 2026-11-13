@@ -62,7 +62,7 @@
         </div>
         <div class="grid-produk">
             @forelse($produk->take(5) as $item)
-                @include('pelanggan.partials.produk', ['labelProduk' => $adaPenjualan ? 'Terlaris' : 'Pilihan Produk'])
+                @include('pelanggan.partials.produk', ['labelProduk' => $item->jumlah_terjual > 0 ? 'Terlaris' : 'Pilihan Produk'])
             @empty
                 <p class="keadaan-kosong">Belum ada produk tersedia.</p>
             @endforelse

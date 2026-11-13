@@ -12,6 +12,33 @@ use Tests\PelangganTestCase;
 
 class PelangganTest extends PelangganTestCase
 {
+    public function test_akun_tersimpan_bisa_login_dari_sesi_baru(): void
+    {
+        $this->post('/daftar', [
+            'name' => 'Pelanggan Dua Sesi', 'email' => 'dua-sesi@example.test',
+            'password' => 'password-dua-sesi', 'password_confirmation' => 'password-dua-sesi',
+        ])->assertRedirect('/akun')->assertSessionHasNoErrors();
+
+        $user = User::where('email', 'dua-sesi@example.test')->firstOrFail();
+        $this->assertTrue(Hash::check('password-dua-sesi', $user->getRawOriginal('password')));
+
+        // Lepaskan identitas dan data sesi klien pertama; database tetap sama.
+        $this->app['auth']->forgetGuards();
+        $this->app['session']->driver()->invalidate();
+        $this->get('/akun')->assertRedirect('/login');
+        $this->post('/login', ['email' => $user->email, 'password' => 'password-dua-sesi'])
+            ->assertRedirect('/akun')->assertSessionHasNoErrors();
+        $this->assertAuthenticatedAs($user, 'web');
+        $this->post('/logout')->assertRedirect('/');
+        $this->assertGuest('web');
+        $this->get('/akun')->assertRedirect('/login');
+
+        $this->from('/login')->post('/login', ['email' => 'belum-terdaftar@example.test', 'password' => 'password-dua-sesi'])
+            ->assertRedirect('/login')->assertSessionHasErrors(['email' => 'Email atau kata sandi tidak sesuai.']);
+        $this->assertGuest('web');
+        $this->assertDatabaseCount('users', 1);
+    }
+
     public function test_katalog_pencarian_dan_detail_memakai_produk_database(): void
     {
         $data = $this->dataBelanja();
@@ -158,10 +185,11 @@ class PelangganTest extends PelangganTestCase
     {
         $data = $this->dataBelanja();
         $pesanan = $this->buatPesanan($data);
-        $this->patch('/admin/pesanan/'.$pesanan->id.'/status', ['status_pesanan' => 'Diproses'])->assertSessionHas('success');
-        $this->get('/pesanan/'.$pesanan->id)->assertOk()->assertSee('Diproses');
+        $admin = $this->akunAdmin();
+        $this->actingAs($admin)->patch('/admin/pesanan/'.$pesanan->id.'/status', ['status_pesanan' => 'Diproses'])->assertSessionHas('success');
+        $this->actingAs($data['user'])->get('/pesanan/'.$pesanan->id)->assertOk()->assertSee('Diproses');
         $this->assertSame(8, $data['produk']->fresh()->stok);
-        $this->patch('/admin/pesanan/'.$pesanan->id.'/tolak')->assertSessionHas('success');
+        $this->actingAs($admin)->patch('/admin/pesanan/'.$pesanan->id.'/tolak')->assertSessionHas('success');
         $this->assertSame(10, $data['produk']->fresh()->stok);
         $this->patch('/admin/pesanan/'.$pesanan->id.'/tolak')->assertSessionHas('error');
         $this->assertSame(10, $data['produk']->fresh()->stok);
@@ -177,7 +205,7 @@ class PelangganTest extends PelangganTestCase
         $pembayaran = $pesanan->pembayaran()->firstOrFail();
         Storage::disk('public')->assertExists($pembayaran->bukti_pembayaran);
         $this->assertSame('Menunggu', $pembayaran->status_pembayaran);
-        $this->get('/admin/pembayaran/'.$pembayaran->id)->assertOk()->assertSee($pembayaran->bukti_pembayaran);
+        $this->actingAs($this->akunAdmin())->get('/admin/pembayaran/'.$pembayaran->id)->assertOk()->assertSee($pembayaran->bukti_pembayaran);
         $this->actingAs(User::factory()->create())
             ->post('/pesanan/'.$pesanan->id.'/bukti', ['bukti' => UploadedFile::fake()->image('asing.png')])->assertNotFound();
     }
@@ -186,8 +214,11 @@ class PelangganTest extends PelangganTestCase
     {
         $data = $this->dataBelanja();
         $this->actingAs($data['user']);
-        foreach (['/akun', '/alamat', '/alamat/tambah', '/alamat/'.$data['alamat'].'/edit', '/pesanan', '/tentang-kami',
-            '/admin/dashboard', '/admin/produk', '/admin/pesanan', '/admin/pembayaran', '/admin/pengiriman', '/admin/data-master'] as $url) {
+        foreach (['/akun', '/alamat', '/alamat/tambah', '/alamat/'.$data['alamat'].'/edit', '/pesanan', '/tentang-kami'] as $url) {
+            $this->get($url)->assertOk();
+        }
+        $this->actingAs($this->akunAdmin());
+        foreach (['/admin/dashboard', '/admin/produk', '/admin/pesanan', '/admin/pembayaran', '/admin/pengiriman', '/admin/data-master'] as $url) {
             $this->get($url)->assertOk();
         }
     }

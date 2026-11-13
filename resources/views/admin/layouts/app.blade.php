@@ -56,7 +56,7 @@
             gap: 5px;
         }
 
-        .menu a {
+        .menu a, .menu .tombol-keluar {
             display: flex;
             align-items: center;
             gap: 12px;
@@ -68,7 +68,7 @@
             font-weight: 500;
         }
 
-        .menu a:hover,
+        .menu a:hover, .menu .tombol-keluar:hover,
         .menu a.active {
             background: #008A50;
             color: white;
@@ -82,7 +82,13 @@
             margin-top: auto;
         }
 
-        .logout a {
+        .logout .tombol-keluar {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            font-family: inherit;
+            text-align: left;
+            cursor: pointer;
             color: #FF4D67;
         }
 
@@ -189,10 +195,13 @@
         </nav>
 
         <div class="menu logout">
-            <a href="#">
-                <i class="bi bi-box-arrow-right"></i>
-                Keluar
-            </a>
+            <form action="{{ route('pelanggan.logout') }}" method="POST">
+                @csrf
+                <button class="tombol-keluar" type="submit">
+                    <i class="bi bi-box-arrow-right"></i>
+                    Keluar
+                </button>
+            </form>
         </div>
     </aside>
 

@@ -16,7 +16,7 @@
                 <a class="brand" href="{{ route('pelanggan.beranda') }}">CV Karunia Abadi</a>
                 <nav class="menu-utama" aria-label="Navigasi utama">
                     <a class="{{ request()->routeIs('pelanggan.beranda') ? 'aktif' : '' }}" href="{{ route('pelanggan.beranda') }}">Beranda</a>
-                    <a class="{{ request()->routeIs('pelanggan.produk*') ? 'aktif' : '' }}" href="{{ route('pelanggan.produk') }}">Produk @if(request()->routeIs('pelanggan.tentang'))<i class="bi bi-chevron-down" aria-hidden="true"></i>@endif</a>
+                    <a class="{{ request()->routeIs('pelanggan.produk*') ? 'aktif' : '' }}" href="{{ route('pelanggan.produk') }}">Produk</a>
                     <a class="{{ request()->routeIs('pelanggan.tentang') ? 'aktif' : '' }}" href="{{ route('pelanggan.tentang') }}">Tentang Kami</a>
                 </nav>
                 <form class="pencarian" action="{{ route('pelanggan.produk') }}" method="GET" role="search">

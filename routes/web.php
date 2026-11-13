@@ -18,6 +18,8 @@ Route::middleware(BahasaPelanggan::class)->group(function () {
     require __DIR__.'/pelanggan.php';
 });
 
+// Seluruh endpoint admin, termasuk perubahan data dan ekspor, wajib memiliki izin.
+Route::middleware(['auth', \App\Http\Middleware\PastikanAdmin::class])->group(function () {
 //yg ini gsn halaman dashboard admin
 Route::get('/admin/dashboard', function () {
     return view('admin.dashboard');
@@ -213,3 +215,4 @@ Route::get('/admin/laporan/export/pdf', [LaporanController::class, 'exportPdf'])
 
 Route::get('/admin/laporan/export/excel', [LaporanController::class, 'exportExcel'])
     ->name('admin.laporan.export.excel');
+});

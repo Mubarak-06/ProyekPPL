@@ -16,12 +16,8 @@ class ProdukController extends Controller
             'detailPesanan as jumlah_terjual' => function ($query) {
                 $query->whereHas('pesanan', fn ($pesanan) => $pesanan->where('status_pesanan', 'Selesai'));
             },
-        ], 'jumlah')->orderByDesc('jumlah_terjual')->orderByDesc('id')->limit(8)->get();
+        ], 'jumlah')->orderByDesc('jumlah_terjual')->orderByDesc('id')->limit(5)->get();
         $adaPenjualan = $produk->contains(fn ($item) => $item->jumlah_terjual > 0);
-
-        if ($adaPenjualan) {
-            $produk = $produk->where('jumlah_terjual', '>', 0);
-        }
 
         return view('pelanggan.beranda', compact('kategori', 'produk', 'adaPenjualan'));
     }

@@ -83,6 +83,14 @@ abstract class PelangganTestCase extends TestCase
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
     }
 
+    protected function akunAdmin(): User
+    {
+        $admin = User::factory()->create();
+        $admin->forceFill(['is_admin' => true])->save();
+
+        return $admin;
+    }
+
     protected function dataBelanja(): array
     {
         DB::table('kategori')->insert(['id' => 1, 'nama_kategori' => 'Baut']);
