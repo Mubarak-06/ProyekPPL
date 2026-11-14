@@ -172,7 +172,7 @@
             </div>
             <div>
                 <p class="stat-label">Total Produk</p>
-                <h3 class="stat-value">0</h3>
+                <h3 class="stat-value">{{ $totalProduk }}</h3>
                 <p class="stat-description">Produk terdaftar</p>
             </div>
         </div>
@@ -183,7 +183,7 @@
             </div>
             <div>
                 <p class="stat-label">Total Pesanan</p>
-                <h3 class="stat-value">0</h3>
+                <h3 class="stat-value">{{ $totalPesanan }}</h3>
                 <p class="stat-description">Semua pesanan</p>
             </div>
         </div>
@@ -194,7 +194,7 @@
             </div>
             <div>
                 <p class="stat-label">Pesanan Diproses</p>
-                <h3 class="stat-value">0</h3>
+                <h3 class="stat-value">{{ $pesananDiproses }}</h3>
                 <p class="stat-description">Menunggu pengiriman</p>
             </div>
         </div>
@@ -205,7 +205,7 @@
             </div>
             <div>
                 <p class="stat-label">Total Penjualan</p>
-                <h3 class="stat-value">Rp 0</h3>
+                <h3 class="stat-value">Rp {{ number_format($totalPenjualan, 0, ',', '.') }}</h3>
                 <p class="stat-description">Pesanan selesai</p>
             </div>
         </div>
@@ -216,7 +216,7 @@
 
         <div class="recent-orders-header">
             <h3>Pesanan Terbaru</h3>
-            <a href="#">Lihat Semua</a>
+            <a href="{{ route('admin.pesanan.index') }}">Lihat Semua</a>
         </div>
 
         <div class="orders-table-wrapper">

@@ -262,7 +262,7 @@
             top: calc(100% + 8px);
             right: 0;
 
-            width: 220px;
+            width: 170px;
             padding: 8px;
 
             background: #FFFFFF;

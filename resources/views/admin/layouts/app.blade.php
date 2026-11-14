@@ -27,11 +27,12 @@
             left: 0;
             width: 200px;
             height: 100vh;
-            background: #1B2533;
+            background: #ffffff;
             color: white;
             padding: 20px 12px;
             display: flex;
             flex-direction: column;
+            border: 1px solid #E2E8F0
         }
 
         .brand {
@@ -42,6 +43,7 @@
             font-size: 14px;
             margin: 0;
             font-weight: 700;
+            color: #111827;
         }
 
         .brand p {
@@ -62,15 +64,20 @@
             gap: 12px;
             padding: 10px 13px;
             border-radius: 6px;
-            color: #94A3B8;
+            color: #111827;
             text-decoration: none;
             font-size: 12px;
             font-weight: 500;
         }
 
-        .menu a:hover, .menu .tombol-keluar:hover,
+        .menu a:hover,
         .menu a.active {
             background: #008A50;
+            color: white;
+        }
+
+        .menu .tombol-keluar:hover{
+            background: #fc2343;
             color: white;
         }
 
@@ -164,7 +171,7 @@
             </a>
 
             <a href="{{ route('admin.produk.index') }}"
-                class="{{ request()->routeIs('admin.produk.*') ? 'active' : '' }}">
+                class="{{ request()->routeIs('admin.produk.*', 'admin.data-master.*') ? 'active' : '' }}">
                 <i class="bi bi-box"></i>
                 Produk
             </a>
@@ -221,6 +228,49 @@
     </main>
 
     @stack('scripts')
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('input, select, textarea').forEach(function (field) {
+
+                field.addEventListener('invalid', function () {
+                    // Hapus pesan lama agar validasi terbaru dapat diperiksa
+                    field.setCustomValidity('');
+
+                    if (field.validity.valueMissing) {
+                        if (field.tagName === 'SELECT') {
+                            field.setCustomValidity('Silakan pilih salah satu pilihan.');
+                        } else if (field.type === 'file') {
+                            field.setCustomValidity('Silakan pilih file terlebih dahulu.');
+                        } else {
+                            field.setCustomValidity('Kolom ini wajib diisi.');
+                        }
+                    } else if (field.validity.typeMismatch) {
+                        field.setCustomValidity('Format data yang dimasukkan tidak valid.');
+                    } else if (field.validity.rangeUnderflow) {
+                        field.setCustomValidity('Nilai yang dimasukkan terlalu kecil.');
+                    } else if (field.validity.rangeOverflow) {
+                        field.setCustomValidity('Nilai yang dimasukkan terlalu besar.');
+                    } else if (field.validity.stepMismatch) {
+                        field.setCustomValidity('Nilai yang dimasukkan tidak sesuai ketentuan.');
+                    } else if (field.validity.patternMismatch) {
+                        field.setCustomValidity('Format data tidak sesuai ketentuan.');
+                    } else {
+                        field.setCustomValidity('Silakan periksa kembali isian ini.');
+                    }
+                });
+
+                field.addEventListener('input', function () {
+                    field.setCustomValidity('');
+                });
+
+                field.addEventListener('change', function () {
+                    field.setCustomValidity('');
+                });
+
+            });
+        });
+    </script>
 </body>
 
 </html>

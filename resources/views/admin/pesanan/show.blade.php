@@ -18,14 +18,16 @@
     }
 
     .detail-title {
-        font-size: 28px;
+        font-size: 22px;
         font-weight: 700;
-        margin: 0 0 6px;
+        margin: 0;
+        color: #111827;
     }
 
     .detail-breadcrumb {
-        font-size: 13px;
+        font-size: 11px;
         color: #64748B;
+        margin: 5px 0 20px;
     }
 
     .detail-breadcrumb a {

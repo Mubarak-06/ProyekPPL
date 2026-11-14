@@ -105,7 +105,7 @@
         .pengiriman-filter-btn {
             height: 38px;
             padding: 0 22px;
-            background: #1677FF;
+            background: #008A50;
             border: none;
             border-radius: 6px;
             color: #FFFFFF;

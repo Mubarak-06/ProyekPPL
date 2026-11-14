@@ -22,7 +22,28 @@ Route::middleware(BahasaPelanggan::class)->group(function () {
 Route::middleware(['auth', \App\Http\Middleware\PastikanAdmin::class])->group(function () {
 //yg ini gsn halaman dashboard admin
 Route::get('/admin/dashboard', function () {
-    return view('admin.dashboard');
+
+    $totalProduk = \Illuminate\Support\Facades\DB::table('produk')
+        ->count();
+
+    $totalPesanan = \Illuminate\Support\Facades\DB::table('pesanan')
+        ->count();
+
+    $pesananDiproses = \Illuminate\Support\Facades\DB::table('pesanan')
+        ->whereIn('status_pesanan', ['Menunggu', 'Diproses'])
+        ->count();
+
+    $totalPenjualan = \Illuminate\Support\Facades\DB::table('pesanan')
+        ->where('status_pesanan', 'Selesai')
+        ->sum('total_pembayaran');
+
+    return view('admin.dashboard', compact(
+        'totalProduk',
+        'totalPesanan',
+        'pesananDiproses',
+        'totalPenjualan'
+    ));
+
 })->name('admin.dashboard');
 
 /*ini gsn kelola produk di admin

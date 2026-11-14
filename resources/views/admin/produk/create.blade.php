@@ -4,21 +4,21 @@
 <style>
     /* Halaman Tambah Produk */
     .tambah-produk-page h1 {
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 700;
         color: #111827;
-        margin-bottom: 4px;
+        margin: 0;
     }
 
     .tambah-produk-page .breadcrumb {
-        font-size: 12px;
+        font-size: 11px;
         color: #64748B;
-        margin-bottom: 22px;
+        margin: 5px 0 20px;
     }
 
     .form-produk-layout {
         display: grid;
-        grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr);
+        grid-template-columns: minmax(0, 1fr);
         gap: 20px;
         align-items: start;
     }
@@ -117,28 +117,69 @@
         margin-top: 10px;
     }
 
-    .upload-produk-area {
-        border: 2px dashed #86EFAC;
-        background: #F8FFFA;
+    .gambar-produk-section {
+        border: 1px solid #E2E8F0;
         border-radius: 8px;
-        padding: 40px 15px;
-        text-align: center;
-        color: #008A50;
+        padding: 15px;
+        margin-bottom: 15px;
     }
 
-    .upload-produk-area i {
-        font-size: 32px;
-    }
-
-    .upload-produk-area p {
-        font-size: 12px;
+    .gambar-produk-section h4 {
+        font-size: 13px;
         font-weight: 600;
-        margin: 12px 0 4px;
+        margin: 0 0 12px;
+        color: #111827;
     }
 
-    .upload-produk-area small {
-        font-size: 10px;
+    .gambar-preview-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .gambar-preview-list:empty { display: none; }
+
+    .gambar-preview-item {
+        position: relative;
+        width: 110px;
+        height: 110px;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+    }
+
+    .gambar-preview-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .gambar-preview-hapus {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        border: 0;
+        border-radius: 50%;
+        width: 15px;
+        height: 15px;
+        background: #DC2626;
+        color: white;
+        cursor: pointer;
+        font-size: 17px;
+        line-height: 3px;
+        padding: 0;
+    }
+
+    .gambar-produk-section input[type="file"] {
+        font-size: 12px;
+        max-width: 100%;
+    }
+
+    .gambar-produk-info {
+        font-size: 11px;
         color: #94A3B8;
+        margin: 10px 0 0;
     }
 
     .form-produk-actions {
@@ -330,39 +371,27 @@
 
                 </div>
 
+                <!-- GAMBAR PRODUK -->
+                <div class="gambar-produk-section">
+                    <h4>Gambar Produk</h4>
+                    <div id="gambar-preview-list" class="gambar-preview-list" aria-live="polite"></div>
+                    <input type="file"
+                           id="gambar-produk-input"
+                           name="gambar[]"
+                           accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                           multiple>
+                    <p class="gambar-produk-info">
+                        Format: JPG, PNG (maksimal 2 MB per gambar). Anda dapat memilih lebih dari satu gambar.
+                    </p>
+                    <p id="gambar-produk-error" style="color:#B91C1C;font-size:11px;margin:8px 0 0;" role="alert" hidden></p>
+                </div>
+
                 <!-- Deskripsi -->
                 <div class="form-group">
                     <label>Deskripsi Produk <span style="color:red">*</span></label>
                     <textarea name="deskripsi"
                             placeholder="Masukkan deskripsi produk di sini..."></textarea>
                 </div>
-
-            </div>
-
-            <!-- GAMBAR PRODUK -->
-            <div class="form-produk-card">
-
-                <h3>Gambar Produk</h3>
-
-                <div class="upload-produk-area">
-                    <i class="bi bi-image"></i>
-                    <p>Klik untuk memilih gambar</p>
-                    <small>
-                        atau seret dan lepas gambar di sini
-                        <br>
-                        Format JPG, PNG (maksimal 2 MB)
-                    </small>
-                </div>
-
-                <input type="file"
-                    name="gambar[]"
-                    accept=".jpg,.jpeg,.png"
-                    multiple
-                    style="margin-top:15px; font-size:12px;">
-
-                <p style="font-size:11px; color:#94A3B8; margin-top:12px;">
-                    Gambar akan ditampilkan pada halaman detail produk.
-                </p>
 
             </div>
 
@@ -393,6 +422,66 @@ document.addEventListener('DOMContentLoaded', function () {
     const material = document.getElementById('material_id');
     const satuan = document.getElementById('satuan_id');
     const ukuran = document.getElementById('ukuran');
+
+    const gambarInput = document.getElementById('gambar-produk-input');
+    const gambarPreview = document.getElementById('gambar-preview-list');
+    const gambarError = document.getElementById('gambar-produk-error');
+    const selectedImages = [];
+    const maxImageSize = 2 * 1024 * 1024;
+
+    function syncImageInput() {
+        const transfer = new DataTransfer();
+        selectedImages.forEach(file => transfer.items.add(file));
+        gambarInput.files = transfer.files;
+    }
+
+    function renderImagePreviews() {
+        gambarPreview.replaceChildren();
+        selectedImages.forEach((file, index) => {
+            const item = document.createElement('div');
+            item.className = 'gambar-preview-item';
+
+            const img = document.createElement('img');
+            img.alt = 'Preview ' + file.name;
+            const imageUrl = URL.createObjectURL(file);
+            img.src = imageUrl;
+            img.onload = () => URL.revokeObjectURL(imageUrl);
+
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'gambar-preview-hapus';
+            remove.textContent = '×';
+            remove.setAttribute('aria-label', 'Hapus gambar ' + file.name);
+            remove.addEventListener('click', () => {
+                selectedImages.splice(index, 1);
+                syncImageInput();
+                renderImagePreviews();
+            });
+
+            item.append(img, remove);
+            gambarPreview.append(item);
+        });
+    }
+
+    gambarInput.addEventListener('change', function () {
+        const incoming = Array.from(this.files);
+        const invalid = [];
+        incoming.forEach(file => {
+            const validType = ['image/jpeg', 'image/png'].includes(file.type);
+            if (!validType || file.size > maxImageSize) {
+                invalid.push(file.name);
+            } else {
+                selectedImages.push(file);
+            }
+        });
+        gambarError.hidden = invalid.length === 0;
+        gambarError.textContent = invalid.length
+            ? 'File berikut harus berupa JPG/PNG dan maksimal 2 MB: ' + invalid.join(', ')
+            : '';
+        syncImageInput();
+        renderImagePreviews();
+    });
+
 
     const urlDropdown = @json(route('admin.produk.dropdown', ['kategoriId' => '__ID__']));
 

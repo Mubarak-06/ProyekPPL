@@ -3,8 +3,7 @@
 @section('title', 'Data Master Pengiriman')
 
 @push('styles')
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
-
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.min.css">
     <style>
         .dm-title {
             font-size: 22px;
@@ -187,32 +186,6 @@
             color: #EF4444;
         }
 
-        .dm-table-controls {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 12px;
-        }
-
-        .dm-search {
-            width: 250px;
-            max-width: 100%;
-            padding: 9px 12px;
-            border: 1px solid #E2E8F0;
-            border-radius: 6px;
-            font-family: 'Poppins', sans-serif;
-            font-size: 12px;
-        }
-
-        .dm-table-wrap .dataTables_wrapper .dataTables_length {
-            margin-bottom: 12px;
-        }
-
-        .dm-table-wrap .dataTables_wrapper .dataTables_info,
-        .dm-table-wrap .dataTables_wrapper .dataTables_paginate {
-            padding-top: 16px;
-            font-size: 12px;
-        }
-
         @media (max-width: 600px) {
             .dm-card-header {
                 align-items: flex-start;
@@ -315,30 +288,138 @@
         .dm-btn-save:hover {
             background: #007344;
         }
+
+
+        /* Tampilan Data Master mengikuti tabel Produk */
+
+        .dm-table-wrap {
+            margin-top: 25px;
+            overflow-x: auto;
+        }
+
+        .dm-table-wrap .dm-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-family: 'Poppins', sans-serif;
+            font-size: 11px !important;
+        }
+
+        .dm-table-wrap .dm-table thead th {
+            font-size: 10px !important;
+            font-weight: 600 !important;
+            color: #64748B !important;
+            text-transform: uppercase;
+            padding: 14px 12px !important;
+            border-bottom: 1px solid #E2E8F0 !important;
+        }
+
+        .dm-table-wrap .dm-table tbody td {
+            font-size: 11px !important;
+            color: #334155;
+            padding: 12px !important;
+            vertical-align: middle;
+            border-bottom: 1px solid #F1F5F9 !important;
+        }
+
+        /* Kontrol DataTables versi 2 */
+
+        .dt-container {
+            font-family: 'Poppins', sans-serif;
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        .dt-container .dt-length,
+        .dt-container .dt-search {
+            margin-bottom: 18px;
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        .dt-container .dt-input {
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 6px !important;
+            padding: 7px 10px !important;
+            background: #FFFFFF !important;
+            color: #64748B !important;
+            font-family: 'Poppins', sans-serif;
+            font-size: 11px !important;
+            outline: none;
+        }
+
+        .dt-container .dt-length select {
+            min-width: 65px;
+        }
+
+        .dt-container .dt-search input {
+            width: 200px;
+        }
+
+        .dt-container .dt-input:focus {
+            border-color: #008A50 !important;
+        }
+
+        /* Pagination */
+
+        .dt-container .dt-paging .dt-paging-button {
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 5px !important;
+            background: #FFFFFF !important;
+            color: #64748B !important;
+            font-size: 11px;
+            margin-left: 4px;
+        }
+
+        .dt-container .dt-paging .dt-paging-button.current,
+        .dt-container .dt-paging .dt-paging-button.current:hover {
+            background: #008A50 !important;
+            color: #FFFFFF !important;
+            border-color: #008A50 !important;
+        }
+
+        .dt-container .dt-paging .dt-paging-button.current {
+            -webkit-text-fill-color: #FFFFFF !important;
+            opacity: 1 !important;
+        }
+
+        .dt-container .dt-paging .dt-paging-button:hover:not(.current):not(.disabled) {
+            background: #ECFDF5 !important;
+            color: #008A50 !important;
+            border-color: #A7F3D0 !important;
+        }
+
+        .dt-container .dt-info {
+            font-size: 11px;
+            color: #64748B;
+        }
+
+        .dt-container .dt-layout-row:last-child {
+            margin-top: 14px;
+        }
     </style>
 @endpush
 
 @section('content')
     @if(session('success'))
         <div style="padding:12px 16px; margin-bottom:16px;
-                                                                    background:#DCFCE7; color:#166534;
-                                                                    border-radius:6px; font-size:12px;">
+                                                                                    background:#DCFCE7; color:#166534;
+                                                                                    border-radius:6px; font-size:12px;">
             {{ session('success') }}
         </div>
     @endif
 
     @if(session('error'))
         <div style="padding:12px 16px; margin-bottom:16px;
-                                                                    background:#FEE2E2; color:#991B1B;
-                                                                    border-radius:6px; font-size:12px;">
+                                                                                    background:#FEE2E2; color:#991B1B;
+                                                                                    border-radius:6px; font-size:12px;">
             {{ session('error') }}
         </div>
     @endif
 
     @if($errors->any())
         <div style="padding:12px 16px; margin-bottom:16px;
-                                                                    background:#FEE2E2; color:#991B1B;
-                                                                    border-radius:6px; font-size:12px;">
+                                                                                    background:#FEE2E2; color:#991B1B;
+                                                                                    border-radius:6px; font-size:12px;">
             {{ $errors->first() }}
         </div>
     @endif
@@ -394,10 +475,6 @@
 
         @foreach($dataMaster as $jenis => $data)
             <div class="dm-panel {{ $jenis === 'provinsi' ? 'active' : '' }}" id="panel-{{ $jenis }}">
-
-                <div class="dm-table-controls">
-                    <input type="text" class="dm-search" data-target="{{ $jenis }}" placeholder="Cari {{ $jenis }}...">
-                </div>
 
                 <div class="dm-table-wrap">
                     <table class="dm-table" id="table-{{ $jenis }}">
@@ -1257,8 +1334,7 @@
 
 @push('scripts')
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-
+    <script src="https://cdn.datatables.net/2.3.4/js/dataTables.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const tables = {};
@@ -1267,7 +1343,6 @@
                 const jenis = panel.id.replace('panel-', '');
 
                 tables[jenis] = $('#table-' + jenis).DataTable({
-                    dom: 'lrtip',
                     pageLength: 10,
                     lengthMenu: [10, 25, 50, 100],
                     autoWidth: false,
@@ -1309,12 +1384,6 @@
                     document.getElementById('dmTambah').innerHTML =
                         '<i class="bi bi-plus-lg"></i> Tambah ' +
                         jenis.charAt(0).toUpperCase() + jenis.slice(1);
-                });
-            });
-
-            document.querySelectorAll('.dm-search').forEach(function (input) {
-                input.addEventListener('input', function () {
-                    tables[this.dataset.target].search(this.value).draw();
                 });
             });
 
