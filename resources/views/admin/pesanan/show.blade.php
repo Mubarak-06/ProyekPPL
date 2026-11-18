@@ -429,9 +429,12 @@
                                     <td>{{ $loop->iteration }}</td>
 
                                     <td>
-                                        @if($produk?->gambar)
-                                            <img
-                                                src="{{ asset('storage/' . $produk->gambar) }}"
+                                        @php
+                                            $gambarUtama = $produk?->gambar[0] ?? null;
+                                        @endphp
+
+                                        @if($gambarUtama)
+                                            <img src="{{ asset('storage/' . $gambarUtama) }}"
                                                 class="detail-product-img"
                                                 alt="Gambar Produk"
                                             >
