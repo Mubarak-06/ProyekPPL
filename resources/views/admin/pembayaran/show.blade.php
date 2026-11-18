@@ -5,15 +5,16 @@
 @push('styles')
     <style>
         .pd-title {
-            font-size: 26px;
+            font-size: 22px;
             font-weight: 700;
+            color: #111827;
             margin: 0;
         }
 
         .pd-breadcrumb {
-            font-size: 12px;
+            font-size: 11px;
             color: #64748B;
-            margin-top: 4px;
+            margin: 5px 0 20px;
         }
 
         .pd-card {

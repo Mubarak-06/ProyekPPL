@@ -52,14 +52,7 @@ abstract class PelangganTestCase extends TestCase
             $table->decimal('harga', 15, 2);
             $table->unsignedInteger('stok');
             $table->text('deskripsi')->nullable();
-            $table->string('gambar')->nullable();
-            $table->timestamps();
-        });
-        Schema::create('gambar_produk', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('produk_id')->constrained('produk');
-            $table->string('path_gambar');
-            $table->integer('urutan');
+            $table->json('gambar')->nullable();
             $table->timestamps();
         });
         Schema::create('alamat', function (Blueprint $table) {

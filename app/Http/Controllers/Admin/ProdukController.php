@@ -37,7 +37,7 @@ class ProdukController extends Controller
 
         return view('admin.produk.index', compact('produk'));
     }
-    
+
     public function create()
     {
         $kategori = DB::table('kategori')
@@ -46,7 +46,7 @@ class ProdukController extends Controller
 
         return view('admin.produk.create', compact('kategori'));
     }
-    
+
     public function getDropdownData($kategoriId)
     {
         $material = DB::table('material')
@@ -143,26 +143,17 @@ class ProdukController extends Controller
                 ->where('id', $produkId)
                 ->update(['kode_barang' => $kodeBarang]);
 
-            // Menyimpan gambar produk
+            // Menyimpan semua gambar ke kolom produk.gambar
             if ($request->hasFile('gambar')) {
-                foreach ($request->file('gambar') as $index => $file) {
+                foreach ($request->file('gambar') as $file) {
                     $path = $file->store('produk', 'public');
                     $pathGambar[] = $path;
-
-                    DB::table('gambar_produk')->insert([
-                        'produk_id' => $produkId,
-                        'path_gambar' => $path,
-                        'urutan' => $index + 1,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
                 }
 
-                // Gambar pertama menjadi gambar utama
                 DB::table('produk')
                     ->where('id', $produkId)
                     ->update([
-                        'gambar' => $pathGambar[0],
+                        'gambar' => json_encode($pathGambar),
                         'updated_at' => now(),
                     ]);
             }
@@ -232,11 +223,22 @@ class ProdukController extends Controller
             ->orderBy('satuan.nama_satuan')
             ->get();
 
-        // Mengambil semua gambar produk
-        $gambarProduk = DB::table('gambar_produk')
-            ->where('produk_id', $produk->id)
-            ->orderBy('urutan')
-            ->get();
+        // Mengambil semua gambar dari kolom JSON produk.gambar
+        $daftarGambar = json_decode($produk->gambar ?? '[]', true);
+
+        if (!is_array($daftarGambar)) {
+            $daftarGambar = [];
+        }
+
+        // Menyesuaikan format agar tetap cocok dengan edit.blade.php
+        $gambarProduk = collect($daftarGambar)
+            ->values()
+            ->map(function ($path, $index) {
+                return (object) [
+                    'id' => $index,
+                    'path_gambar' => $path,
+                ];
+            });
 
         return view('admin.produk.edit', compact(
             'produk',
@@ -299,11 +301,15 @@ class ProdukController extends Controller
             $validated['material_id'] = null;
         }
 
-        // Membatasi jumlah gambar keseluruhan menjadi 4
-        $jumlahGambarLama = DB::table('gambar_produk')
-            ->where('produk_id', $id)
-            ->count();
+        // Mengambil gambar lama dari kolom JSON
+        $gambarLama = json_decode($produk->gambar ?? '[]', true);
 
+        if (!is_array($gambarLama)) {
+            $gambarLama = [];
+        }
+
+        // Menghitung jumlah gambar lama dan baru
+        $jumlahGambarLama = count($gambarLama);
         $jumlahGambarBaru = count($request->file('gambar', []));
 
         if ($jumlahGambarLama + $jumlahGambarBaru > 4) {
@@ -337,35 +343,21 @@ class ProdukController extends Controller
 
             // Menambahkan gambar baru tanpa menghapus gambar lama
             if ($request->hasFile('gambar')) {
-                $urutanTerakhir = DB::table('gambar_produk')
-                    ->where('produk_id', $id)
-                    ->max('urutan') ?? 0;
-
                 foreach ($request->file('gambar') as $file) {
                     $path = $file->store('produk', 'public');
                     $pathGambarBaru[] = $path;
-                    $urutanTerakhir++;
-
-                    DB::table('gambar_produk')->insert([
-                        'produk_id' => $id,
-                        'path_gambar' => $path,
-                        'urutan' => $urutanTerakhir,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
                 }
-            }
 
-            // Menetapkan gambar utama jika belum ada
-            if (!$produk->gambar) {
-                $gambarUtama = DB::table('gambar_produk')
-                    ->where('produk_id', $id)
-                    ->orderBy('urutan')
-                    ->value('path_gambar');
+                // Menggabungkan gambar lama dan gambar baru
+                $semuaGambar = array_merge($gambarLama, $pathGambarBaru);
 
+                // Menyimpan semua path gambar ke tabel produk
                 DB::table('produk')
                     ->where('id', $id)
-                    ->update(['gambar' => $gambarUtama]);
+                    ->update([
+                        'gambar' => json_encode(array_values($semuaGambar)),
+                        'updated_at' => now(),
+                    ]);
             }
 
             DB::commit();
@@ -393,108 +385,98 @@ class ProdukController extends Controller
 
     public function hapusGambar($id)
     {
-        // Mencari gambar berdasarkan ID
-        $gambar = DB::table('gambar_produk')
-            ->where('id', $id)
-            ->first();
+        // ID gambar lama sekarang digunakan sebagai indeks array JSON.
+        // ID produk dikirim melalui parameter query.
+        $produkId = request()->query('produk_id');
 
-        if (!$gambar) {
-            abort(404);
-        }
-
-        // Memastikan produk masih tersedia
-        $produk = DB::table('produk')
-            ->where('id', $gambar->produk_id)
-            ->first();
+        $produk = DB::table('produk')->where('id', $produkId)->first();
 
         if (!$produk) {
-            abort(404);
+            return redirect()
+                ->route('admin.produk.index')
+                ->with('error', 'Produk tidak ditemukan.');
         }
 
+        $daftarGambar = json_decode($produk->gambar ?? '[]', true);
+
+        if (!is_array($daftarGambar)) {
+            $daftarGambar = [];
+        }
+
+        // Memastikan indeks gambar valid
+        if (
+            !ctype_digit((string) $id) ||
+            !array_key_exists((int) $id, $daftarGambar)
+        ) {
+            return redirect()
+                ->route('admin.produk.edit', $produk->id)
+                ->with('error', 'Gambar tidak ditemukan.');
+        }
+
+        $index = (int) $id;
+        $pathGambar = $daftarGambar[$index];
+
+        // Menghapus satu gambar dari array
+        array_splice($daftarGambar, $index, 1);
+
         try {
-            DB::transaction(function () use ($gambar, $produk) {
+            DB::table('produk')
+                ->where('id', $produk->id)
+                ->update([
+                    'gambar' => json_encode(array_values($daftarGambar)),
+                    'updated_at' => now(),
+                ]);
 
-                // Menghapus data gambar dari database
-                DB::table('gambar_produk')
-                    ->where('id', $gambar->id)
-                    ->delete();
-
-                // Jika gambar yang dihapus merupakan gambar utama
-                if ($produk->gambar === $gambar->path_gambar) {
-
-                    // Mengambil gambar pengganti
-                    $gambarPengganti = DB::table('gambar_produk')
-                        ->where('produk_id', $produk->id)
-                        ->orderBy('urutan')
-                        ->orderBy('id')
-                        ->value('path_gambar');
-
-                    // Memperbarui gambar utama
-                    DB::table('produk')
-                        ->where('id', $produk->id)
-                        ->update([
-                            'gambar' => $gambarPengganti,
-                            'updated_at' => now()
-                        ]);
-                }
-            });
-
-            // Menghapus file setelah perubahan database berhasil
-            Storage::disk('public')->delete($gambar->path_gambar);
+            // Menghapus file fisik setelah database berhasil diperbarui
+            if (
+                is_string($pathGambar) &&
+                str_starts_with($pathGambar, 'produk/')
+            ) {
+                Storage::disk('public')->delete($pathGambar);
+            }
 
             return redirect()
                 ->route('admin.produk.edit', $produk->id)
                 ->with('success', 'Gambar produk berhasil dihapus.');
 
         } catch (\Throwable $e) {
-            report($e);
-
             return redirect()
                 ->route('admin.produk.edit', $produk->id)
-                ->withErrors([
-                    'gambar' => 'Gambar gagal dihapus. Silakan coba kembali.'
-                ]);
+                ->with('error', 'Gagal menghapus gambar produk.');
         }
     }
-    
+
     public function destroy($id)
     {
-        // Memastikan produk tersedia
-        $produk = DB::table('produk')
-            ->where('id', $id)
-            ->first();
+        $produk = DB::table('produk')->where('id', $id)->first();
 
         if (!$produk) {
-            abort(404);
+            return redirect()
+                ->route('admin.produk.index')
+                ->with('error', 'Produk tidak ditemukan.');
         }
 
-        // Mengambil seluruh gambar yang terkait dengan produk
-        $gambarProduk = DB::table('gambar_produk')
-            ->where('produk_id', $id)
-            ->pluck('path_gambar')
-            ->toArray();
+        // Mengambil daftar gambar dari kolom JSON
+        $daftarGambar = json_decode($produk->gambar ?? '[]', true);
 
-        // Memastikan gambar utama juga tercatat
-        if ($produk->gambar && !in_array($produk->gambar, $gambarProduk)) {
-            $gambarProduk[] = $produk->gambar;
+        if (!is_array($daftarGambar)) {
+            $daftarGambar = [];
         }
 
         try {
-            // Menghapus produk dan relasi gambarnya dari database
-            DB::transaction(function () use ($id) {
+            // Hapus data produk dari database terlebih dahulu
+            DB::table('produk')
+                ->where('id', $id)
+                ->delete();
 
-                DB::table('gambar_produk')
-                    ->where('produk_id', $id)
-                    ->delete();
-
-                DB::table('produk')
-                    ->where('id', $id)
-                    ->delete();
-            });
-
-            // Menghapus file gambar setelah transaksi berhasil
-            foreach ($gambarProduk as $path) {
-                Storage::disk('public')->delete($path);
+            // Hapus semua file gambar setelah data produk berhasil dihapus
+            foreach ($daftarGambar as $path) {
+                if (
+                    is_string($path) &&
+                    str_starts_with($path, 'produk/')
+                ) {
+                    Storage::disk('public')->delete($path);
+                }
             }
 
             return redirect()
@@ -502,13 +484,9 @@ class ProdukController extends Controller
                 ->with('success', 'Produk berhasil dihapus.');
 
         } catch (\Throwable $e) {
-            report($e);
-
             return redirect()
                 ->route('admin.produk.index')
-                ->withErrors([
-                    'hapus' => 'Produk gagal dihapus. Silakan coba kembali.'
-                ]);
+                ->with('error', 'Produk gagal dihapus.');
         }
     }
 }

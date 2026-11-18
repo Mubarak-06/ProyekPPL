@@ -31,7 +31,7 @@
                 <article class="item-keranjang">
                     <label class="pilih-item"><input type="checkbox" name="pilihan[]" value="{{ $item->id }}" form="pilihan-keranjang" data-pilih-item @checked(in_array($item->id, $pilihan))><span class="sr-only">Pilih {{ $item->nama_produk }}</span></label>
                     <div class="foto-keranjang">
-                        @include('pelanggan.partials.gambar', ['path' => $item->gambar ?: $item->gambarProduk->first()?->path_gambar, 'nama' => $item->nama_produk])
+                        @include('pelanggan.partials.gambar', ['path' => $item->gambar[0] ?? null, 'nama' => $item->nama_produk])
                     </div>
                     <div class="info-item">
                         <h2><a href="{{ route('pelanggan.produk.show', $item) }}">{{ $item->nama_produk }}</a></h2>

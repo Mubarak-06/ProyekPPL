@@ -340,7 +340,7 @@
             </div>
 
             <a href="{{ route('admin.produk.create') }}" class="btn-tambah" style="text-decoration:none; display:inline-flex;
-                        align-items:center; gap:6px;">
+                            align-items:center; gap:6px;">
                 <i class="bi bi-plus-lg"></i>
                 Tambah Produk
             </a>
@@ -368,8 +368,18 @@
                             <td>{{ $loop->iteration }}</td>
 
                             <td>
-                                @if($item->gambar)
-                                    <img src="{{ asset('storage/' . $item->gambar) }}" class="foto-produk"
+                                @php
+                                    // Mengambil daftar gambar dari JSON
+                                    $daftarGambar = json_decode($item->gambar ?? '[]', true);
+
+                                    // Mengambil gambar pertama sebagai gambar utama
+                                    $gambarUtama = is_array($daftarGambar)
+                                        ? ($daftarGambar[0] ?? null)
+                                        : null;
+                                @endphp
+
+                                @if($gambarUtama)
+                                    <img src="{{ asset('storage/' . $gambarUtama) }}" class="foto-produk"
                                         alt="{{ $item->nama_produk }}">
                                 @else
                                     <i class="bi bi-image" style="font-size: 22px; color: #94A3B8;"></i>

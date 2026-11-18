@@ -26,6 +26,7 @@ class Produk extends Model
         'berat' => 'decimal:2',
         'harga' => 'decimal:2',
         'stok' => 'integer',
+        'gambar' => 'array',
     ];
 
     // Relasi ke detail pesanan
@@ -47,10 +48,5 @@ class Produk extends Model
     public function satuan()
     {
         return $this->belongsTo(Satuan::class, 'satuan_id');
-    }
-
-    public function gambarProduk()
-    {
-        return $this->hasMany(GambarProduk::class, 'produk_id')->orderBy('urutan');
     }
 }

@@ -12,7 +12,7 @@ class KeranjangController extends Controller
     public function index(Request $request)
     {
         $keranjang = $request->session()->get('keranjang', []);
-        $produk = Produk::with('gambarProduk')->whereIn('id', array_keys($keranjang))->get();
+        $produk = Produk::whereIn('id', array_keys($keranjang))->get();
         $subtotal = $produk->sum(fn ($item) => $item->harga * $keranjang[$item->id]);
         $produkHilang = count($keranjang) !== $produk->count();
         $pilihan = $request->session()->get('keranjang_pilihan', array_keys($keranjang));

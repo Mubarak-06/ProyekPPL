@@ -4,7 +4,7 @@
     @endif
     <a class="tautan-produk" href="{{ route('pelanggan.produk.show', $item) }}">
         <div class="foto-produk">
-            @include('pelanggan.partials.gambar', ['path' => $item->gambar ?: $item->gambarProduk->first()?->path_gambar, 'nama' => $item->nama_produk])
+            @include('pelanggan.partials.gambar', ['path' => $item->gambar[0] ?? null, 'nama' => $item->nama_produk])
         </div>
         <h3>{{ $item->nama_produk }}</h3>
     </a>

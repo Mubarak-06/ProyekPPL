@@ -65,7 +65,7 @@
             <div class="judul-bagian"><h2><i class="bi bi-cart3" aria-hidden="true"></i> Ringkasan Pesanan</h2><a href="{{ route('pelanggan.keranjang') }}">Ubah Pesanan <i class="bi bi-pencil" aria-hidden="true"></i></a></div>
             <ul class="daftar-checkout">
                 @foreach($produk as $item)
-                    <li><div class="foto-checkout">@include('pelanggan.partials.gambar', ['path' => $item->gambar ?: $item->gambarProduk->first()?->path_gambar, 'nama' => $item->nama_produk])</div><div class="info-checkout"><strong>{{ $item->nama_produk }}</strong>@if($item->material)<small>{{ $item->material->nama_material }}</small>@endif @if($item->ukuran)<small>{{ $item->ukuran }}</small>@endif</div><div class="harga-checkout"><strong>Rp{{ number_format($item->harga, 0, ',', '.') }}</strong><small>× {{ $keranjang[$item->id] }}</small></div></li>
+                    <li><div class="foto-checkout">@include('pelanggan.partials.gambar', ['path' => $item->gambar[0] ?? null, 'nama' => $item->nama_produk])</div><div class="info-checkout"><strong>{{ $item->nama_produk }}</strong>@if($item->material)<small>{{ $item->material->nama_material }}</small>@endif @if($item->ukuran)<small>{{ $item->ukuran }}</small>@endif</div><div class="harga-checkout"><strong>Rp{{ number_format($item->harga, 0, ',', '.') }}</strong><small>× {{ $keranjang[$item->id] }}</small></div></li>
                 @endforeach
             </ul>
             <div class="baris-total"><span>Subtotal Produk ({{ $produk->count() }} item)</span><strong>Rp{{ number_format($subtotal / 100, 0, ',', '.') }}</strong></div>

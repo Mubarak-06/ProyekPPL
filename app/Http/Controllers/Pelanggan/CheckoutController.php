@@ -22,7 +22,7 @@ class CheckoutController extends Controller
         if (!$keranjang) {
             return redirect()->route('pelanggan.keranjang')->with('error', 'Keranjang masih kosong.');
         }
-        $produk = Produk::with(['gambarProduk', 'material'])->whereIn('id', array_keys($keranjang))->get();
+        $produk = Produk::with('material')->whereIn('id', array_keys($keranjang))->get();
         try {
             $this->validasiProduk($produk, $keranjang);
         } catch (ValidationException $e) {
