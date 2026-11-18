@@ -392,8 +392,12 @@
                             <td>
                                 <div class="pesanan-produk">
 
-                                    @if($produkPertama?->gambar)
-                                        <img src="{{ asset('storage/' . $produkPertama->gambar) }}" alt="Foto Produk"
+                                    @php
+                                        $gambarUtama = $produkPertama?->gambar[0] ?? null;
+                                    @endphp
+
+                                    @if($gambarUtama)
+                                        <img src="{{ asset('storage/' . $gambarUtama) }}" alt="Foto Produk"
                                             class="pesanan-produk-img">
                                     @else
                                         <div class="pesanan-produk-placeholder">
