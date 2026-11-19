@@ -2,6 +2,11 @@ let formHapus = null;
 let tombolHapus = null;
 
 document.addEventListener('click', function (event) {
+    const bayar = event.target.closest('[data-pemberitahuan-pembayaran]');
+    if (bayar?.form?.querySelector('[data-jenis-metode]:checked')) {
+        window.alert('Metode pembayaran berhasil dipilih. Fitur pembayaran akan segera tersedia.');
+    }
+
     const toggle = event.target.closest('[data-password]');
     if (toggle) {
         const input = document.getElementById(toggle.dataset.password);
@@ -51,6 +56,11 @@ document.addEventListener('click', function (event) {
 });
 
 document.addEventListener('submit', function (event) {
+    if (event.target.id === 'form-checkout') {
+        event.preventDefault();
+        return;
+    }
+
     const pesan = event.submitter?.dataset.konfirmasiTombol || event.target.dataset.konfirmasi;
     if (pesan && event.target.dataset.disetujui !== 'ya') {
         event.preventDefault();

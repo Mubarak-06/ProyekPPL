@@ -33,7 +33,9 @@
                         'ewallet' => ['E-Wallet', 'wallet2', 'Pembayaran menggunakan dompet digital.'],
                         'qris' => ['QRIS', 'qr-code', 'Pembayaran dengan scan QRIS.'],
                     ];
-                    $metodeAwal = old('metode_pembayaran_id', $metode->firstWhere('tersedia', true)?->id);
+                    $metodeSiap = $metode->where('tersedia', true);
+                    $metodeAwal = $metodeSiap->firstWhere('id', old('metode_pembayaran_id')) ?? $metodeSiap->first();
+                    $jenisAwal = $metodeAwal?->jenis_metode ?? array_key_first($jenisPembayaran);
                 @endphp
                 <form id="form-checkout" action="{{ route('pelanggan.checkout.store') }}" method="POST">
                     @csrf
@@ -42,15 +44,16 @@
                     @foreach($jenisPembayaran as $jenis => [$nama, $ikon, $deskripsi])
                         @php
                             $penyedia = $metode->where('jenis_metode', $jenis);
-                            $siap = $penyedia->where('tersedia', true);
-                            $terpilih = $siap->firstWhere('id', $metodeAwal) ?? $siap->first();
+                            $namaPenyedia = $jenis === 'ewallet' && $penyedia->isEmpty() ? ['DANA'] : $penyedia->pluck('nama_penyedia');
+                            $siap = $metodeSiap->where('jenis_metode', $jenis);
+                            $terpilih = $siap->firstWhere('id', $metodeAwal?->id) ?? $siap->first();
                         @endphp
                         <div class="grup-pembayaran">
                             <label class="pilihan-bayar" for="metode-{{ $jenis }}">
-                                <input id="metode-{{ $jenis }}" type="radio" name="metode_pembayaran_id" value="{{ $terpilih?->id }}" @checked($terpilih && $terpilih->id == $metodeAwal) @disabled($siap->isEmpty()) required>
+                                <input id="metode-{{ $jenis }}" type="radio" name="metode_pembayaran_id" value="{{ $terpilih?->id }}" data-jenis-metode="{{ $jenis }}" @checked($jenis === $jenisAwal) required>
                                 <i class="bi bi-{{ $ikon }}" aria-hidden="true"></i>
-                                <span class="deskripsi-metode"><strong>{{ $nama }}</strong><small>{{ $siap->isNotEmpty() ? $deskripsi : 'Belum tersedia: metode belum aktif atau informasi pembayaran belum lengkap.' }}</small></span>
-                                <span class="label-penyedia">@foreach($penyedia as $provider)<span>{{ $provider->nama_penyedia }}</span>@endforeach</span>
+                                <span class="deskripsi-metode"><strong>{{ $nama }}</strong><small>{{ $deskripsi }}</small></span>
+                                <span class="label-penyedia">@foreach($namaPenyedia as $namaProvider)<span>{{ $namaProvider }}</span>@endforeach</span>
                             </label>
                             @if($siap->count() > 1)
                                 <div class="pilih-penyedia"><label for="penyedia-{{ $jenis }}">Pilih penyedia {{ $nama }}</label><select id="penyedia-{{ $jenis }}" data-penyedia-metode="metode-{{ $jenis }}">@foreach($siap as $provider)<option value="{{ $provider->id }}" @selected($terpilih?->id === $provider->id)>{{ $provider->nama_penyedia }}</option>@endforeach</select></div>
@@ -75,7 +78,7 @@
             @elseif($alamatDipilih)
                 <p role="alert">Tarif ongkir untuk alamat ini belum tersedia. Pilih alamat lain.</p>
             @endif
-            <button class="tombol-penuh" type="submit" form="form-checkout" @disabled(!$ongkir || !$metode->contains('tersedia', true))><i class="bi bi-credit-card" aria-hidden="true"></i> Bayar Sekarang</button>
+            <button class="tombol-penuh" type="button" form="form-checkout" data-pemberitahuan-pembayaran><i class="bi bi-credit-card" aria-hidden="true"></i> Bayar Sekarang</button>
         </aside>
     </div>
 @endsection

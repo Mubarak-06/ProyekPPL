@@ -632,6 +632,31 @@ ul.pesan {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 24px;
 }
+.halaman-katalog .grid-produk {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+}
+@media (min-width: 480px) {
+    .halaman-katalog .grid-produk {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (min-width: 768px) {
+    .halaman-katalog .grid-produk {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@media (min-width: 1024px) {
+    .halaman-katalog .grid-produk {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 20px;
+    }
+}
+@media (min-width: 1280px) {
+    .halaman-katalog .grid-produk {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}
 .kartu-produk {
     display: flex;
     flex-direction: column;
@@ -695,6 +720,37 @@ ul.pesan {
 }
 .gambar-kosong .bi {
     font-size: 32px;
+}
+.halaman-katalog .kartu-produk {
+    padding: 12px;
+}
+.halaman-katalog .foto-produk {
+    width: min(100%, 216px);
+    height: auto;
+    aspect-ratio: 4 / 3;
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+    padding: 4px;
+    margin: 0 auto 8px;
+}
+.halaman-katalog .foto-produk .gambar-kosong {
+    min-height: 0;
+}
+.halaman-katalog .kartu-produk h3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    min-height: 2.6em;
+    overflow: hidden;
+}
+.halaman-katalog .kartu-produk .harga {
+    margin-bottom: 10px;
+}
+.halaman-katalog .aksi-produk {
+    gap: 6px;
+}
+.halaman-katalog .aksi-produk button {
+    min-height: 38px;
+    padding: 6px 8px;
 }
 .pelanggan nav[aria-label='Navigasi halaman'] {
     display: flex;
