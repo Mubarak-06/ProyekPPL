@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Pelanggan;
 
 use App\Http\Controllers\Controller;
 use App\Models\Alamat;
+use App\Models\MidtransRekonsiliasi;
 use App\Models\Pesanan;
+use App\Services\MidtransPaymentCoordinator;
+use App\Services\MidtransSnapService;
+use App\Services\MidtransWebhookService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -34,7 +38,7 @@ class AkunController extends Controller
         $fotoBaru = null;
         if ($request->hasFile('foto_profil')) {
             $fotoBaru = $request->file('foto_profil')->store('profil', 'public');
-            if (!$fotoBaru) {
+            if (! $fotoBaru) {
                 throw ValidationException::withMessages(['foto_profil' => 'Foto gagal disimpan.']);
             }
             $user->foto_profil = $fotoBaru;
@@ -124,6 +128,7 @@ class AkunController extends Controller
                 return back()->with('error', 'Alamat sudah digunakan pada pesanan dan tidak dapat dihapus.');
             }
             $alamat->delete();
+
             return back()->with('success', 'Alamat berhasil dihapus.');
         });
     }
@@ -132,15 +137,82 @@ class AkunController extends Controller
     {
         $data = $request->validate(['jenis' => ['required', Rule::in(['kota', 'kecamatan', 'kelurahan'])], 'induk' => 'required|integer|min:1']);
         $induk = ['kota' => 'provinsi_id', 'kecamatan' => 'kota_id', 'kelurahan' => 'kecamatan_id'];
+
         return response()->json(DB::table($data['jenis'])->where($induk[$data['jenis']], $data['induk'])
             ->orderBy('nama_'.$data['jenis'])->get(['id', 'nama_'.$data['jenis'].' as nama']));
     }
 
-    public function pembayaran(Request $request, $id)
+    public function pembayaran(Request $request, $id, MidtransSnapService $snap)
     {
         $pesanan = Pesanan::with('pembayaran', 'pengiriman')->where('user_id', $request->user()->id)->findOrFail($id);
+        if ($pesanan->pembayaran?->gateway === 'midtrans') {
+            $perluPemeriksaan = MidtransRekonsiliasi::where('pembayaran_id', $pesanan->pembayaran->id)
+                ->where('status_penahanan', '<>', 'dilepas')->cursor()
+                ->contains(fn (MidtransRekonsiliasi $case) => $case->menahanPemenuhan($pesanan->pembayaran));
+            $clientKey = $snap->sandboxClientKey();
+            $snapAvailable = isset($snap->checkoutMethods()[$pesanan->pembayaran->metode_pembayaran]);
+            $returnId = $request->query('transaction_id');
+            $returnId = is_string($returnId) && preg_match('/\A[A-Za-z0-9_~.\-]{1,50}\z/', $returnId) === 1
+                && ! in_array($returnId, ['.', '..'], true) ? $returnId : null;
+
+            return response()->view('pelanggan.pembayaran-snap', compact('pesanan', 'perluPemeriksaan', 'clientKey', 'snapAvailable', 'returnId'))
+                ->header('Cache-Control', 'private, no-store');
+        }
         $metode = $pesanan->pembayaran ? DB::table('metode_pembayaran')->find($pesanan->pembayaran->metode_pembayaran_id) : null;
+
         return view('pelanggan.pembayaran', compact('pesanan', 'metode'));
+    }
+
+    public function tokenSnap(Request $request, int $id, MidtransPaymentCoordinator $coordinator, MidtransSnapService $snap)
+    {
+        $order = Pesanan::with('pembayaran:id,pesanan_id,gateway,metode_pembayaran')
+            ->where('user_id', $request->user()->id)->findOrFail($id);
+        if ($order->pembayaran?->gateway !== 'midtrans'
+            || ! isset($snap->checkoutMethods()[$order->pembayaran->metode_pembayaran])) {
+            return response()->json(['status' => 'rejected'])->header('Cache-Control', 'private, no-store');
+        }
+        $result = $coordinator->requestToken($request->user()->id, $order->id);
+        $body = ['status' => $result['status']];
+        if ($result['status'] === 'ready') {
+            if ($snap->isSandboxRedirectUrl($result['redirect_url'])) {
+                $body['redirect_url'] = $result['redirect_url'];
+            }
+            if ($snap->sandboxClientKey() !== null) {
+                $body['token'] = $result['token'];
+            }
+            if (count($body) === 1) {
+                $body['status'] = 'rejected';
+            }
+        }
+
+        return response()->json($body)->header('Cache-Control', 'private, no-store');
+    }
+
+    public function periksaStatusSnap(Request $request, int $id, MidtransWebhookService $midtrans)
+    {
+        $pesanan = Pesanan::with('pembayaran')->where('user_id', $request->user()->id)->findOrFail($id);
+        abort_unless($pesanan->pembayaran?->gateway === 'midtrans' && config('services.midtrans.is_production') === false, 404);
+        $data = $request->validate(['transaction_id' => ['nullable', 'string', 'regex:/\A[A-Za-z0-9_~.\-]{1,50}\z/']]);
+        $transactionId = $pesanan->pembayaran->metode_pembayaran === 'E-Wallet' ? ($data['transaction_id'] ?? null) : null;
+        $result = $midtrans->refreshStatus($pesanan->pembayaran, $transactionId);
+        $message = match ($result['status']) {
+            'applied' => 'Pembayaran berhasil diverifikasi oleh Midtrans.',
+            'acknowledged' => ($result['reason'] ?? null) === 'already_paid'
+                ? 'Pembayaran sudah terverifikasi.' : 'Midtrans masih menunggu pembayaran.',
+            'needs_reconciliation' => 'Pembayaran perlu diperiksa lebih lanjut.',
+            'transaction_id_required' => 'Masukkan ID transaksi DANA dari detail transaksi Midtrans Sandbox.',
+            default => 'Status belum dapat diverifikasi. Coba lagi setelah pembayaran disimulasikan.',
+        };
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => $result['status'],
+                'reason' => $result['reason'] ?? null,
+                'message' => $message,
+            ])->header('Cache-Control', 'private, no-store');
+        }
+
+        return redirect()->route('pelanggan.pembayaran', $id)->with('status_midtrans', $message);
     }
 
     public function detailPesanan(Request $request, $id)
@@ -163,11 +235,12 @@ class AkunController extends Controller
             DB::transaction(function () use ($request, $id, &$path) {
                 $pesanan = Pesanan::where('user_id', $request->user()->id)->lockForUpdate()->findOrFail($id);
                 $pembayaran = $pesanan->pembayaran()->lockForUpdate()->firstOrFail();
-                abort_unless(in_array($pesanan->status_pesanan, ['Menunggu', 'Diproses'], true)
+                abort_unless($pembayaran->gateway !== 'midtrans'
+                    && in_array($pesanan->status_pesanan, ['Menunggu', 'Diproses'], true)
                     && $pembayaran->status_pembayaran === 'Menunggu'
-                    && !$pembayaran->bukti_pembayaran, 422, 'Bukti pembayaran tidak dapat diunggah untuk pesanan ini.');
+                    && ! $pembayaran->bukti_pembayaran, 422, 'Bukti pembayaran tidak dapat diunggah untuk pesanan ini.');
                 $path = $request->file('bukti')->store('bukti-pembayaran', 'public');
-                if (!$path) {
+                if (! $path) {
                     throw ValidationException::withMessages(['bukti' => 'Bukti pembayaran gagal disimpan. Silakan coba kembali.']);
                 }
                 $pembayaran->update(['bukti_pembayaran' => $path]);

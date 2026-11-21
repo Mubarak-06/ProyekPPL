@@ -28,6 +28,16 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'midtrans' => [
+        'server_key' => env('MIDTRANS_SERVER_KEY'),
+        'client_key' => env('MIDTRANS_CLIENT_KEY'),
+        'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
+        'snap_page_expiry_minutes' => 15,
+        // Kandidat untuk diuji. Aktivasi juga memerlukan bukti Sandbox dan dukungan aplikasi.
+        'sandbox_channels' => array_values(array_filter(array_map('trim', explode(',', (string) env('MIDTRANS_SANDBOX_CHANNELS', 'bca_va,bni_va,bri_va,echannel,dana,other_qris'))))),
+        'sandbox_verified_channels' => array_values(array_filter(array_map('trim', explode(',', (string) env('MIDTRANS_SANDBOX_VERIFIED_CHANNELS', ''))))),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

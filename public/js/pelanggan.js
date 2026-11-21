@@ -2,11 +2,6 @@ let formHapus = null;
 let tombolHapus = null;
 
 document.addEventListener('click', function (event) {
-    const bayar = event.target.closest('[data-pemberitahuan-pembayaran]');
-    if (bayar?.form?.querySelector('[data-jenis-metode]:checked')) {
-        window.alert('Metode pembayaran berhasil dipilih. Fitur pembayaran akan segera tersedia.');
-    }
-
     const toggle = event.target.closest('[data-password]');
     if (toggle) {
         const input = document.getElementById(toggle.dataset.password);
@@ -56,8 +51,9 @@ document.addEventListener('click', function (event) {
 });
 
 document.addEventListener('submit', function (event) {
-    if (event.target.id === 'form-checkout') {
+    if (event.target.matches('[data-snap-payment]')) {
         event.preventDefault();
+        bukaPembayaranSnap(event.target);
         return;
     }
 
@@ -72,14 +68,77 @@ document.addEventListener('submit', function (event) {
     }
 });
 
+async function bukaPembayaranSnap(form) {
+    const tombol = form.querySelector('button');
+    const status = document.querySelector('[data-snap-status]');
+    if (tombol.disabled) return;
+    tombol.disabled = true;
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST', body: new FormData(form), headers: {Accept: 'application/json'},
+        });
+        if (!response.ok) throw new Error();
+        const hasil = await response.json();
+        if (hasil.status === 'ready' && (!hasil.token || !window.snap?.pay) && hasil.redirect_url) {
+            window.location.assign(hasil.redirect_url);
+            return;
+        }
+        if (hasil.status === 'ready' && hasil.token && window.snap?.pay) {
+            const periksa = (hasilSnap) => {
+                tombol.disabled = false;
+                const formStatus = document.querySelector('[data-snap-check]');
+                const idTransaksi = formStatus?.elements.transaction_id;
+                if (idTransaksi && typeof hasilSnap?.transaction_id === 'string') {
+                    idTransaksi.value = hasilSnap.transaction_id;
+                }
+                if (formStatus && (!idTransaksi || idTransaksi.value)) mulaiPeriksaSnap(formStatus);
+            };
+            window.snap.pay(hasil.token, {
+                onSuccess: periksa, onPending: periksa, onError: periksa, onClose: () => periksa(),
+            });
+            return;
+        }
+        status.textContent = 'Pembayaran belum dapat dibuka. Muat ulang untuk memeriksa status.';
+    } catch {
+        status.textContent = 'Pembayaran belum dapat dibuka. Coba lagi setelah beberapa saat.';
+    }
+    tombol.disabled = false;
+}
+
+async function mulaiPeriksaSnap(form) {
+    if (form.dataset.memeriksa) return;
+    form.dataset.memeriksa = 'ya';
+    try {
+        for (let percobaan = 0; percobaan < 8; percobaan++) {
+            if (percobaan) await new Promise(resolve => setTimeout(resolve, 16000));
+            const response = await fetch(form.action, {
+                method: 'POST', body: new FormData(form), headers: {Accept: 'application/json'},
+            });
+            if (!response.ok) return;
+            const hasil = await response.json();
+            if (hasil.status === 'applied' || hasil.status === 'needs_reconciliation' || hasil.reason === 'already_paid') {
+                window.location.reload();
+                return;
+            }
+            if (hasil.status === 'transaction_id_required') return;
+        }
+    } catch {
+        // Form tetap tersedia untuk pemeriksaan manual.
+    } finally {
+        delete form.dataset.memeriksa;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const formStatus = document.querySelector('[data-snap-check]');
+    if (formStatus && formStatus.checkValidity()) mulaiPeriksaSnap(formStatus);
+    const formDana = document.querySelector('[data-snap-autostart]');
+    if (formDana) bukaPembayaranSnap(formDana);
+});
+
 document.addEventListener('change', function (event) {
     const input = event.target;
     if (input.matches('[data-pilih-alamat] input[name="alamat_id"]')) input.form.requestSubmit();
-    if (input.matches('[data-penyedia-metode]')) {
-        const radio = document.getElementById(input.dataset.penyediaMetode);
-        radio.value = input.value;
-        radio.checked = true;
-    }
     if (input.matches('[data-jumlah-langsung] input[name="jumlah"]')) {
         if (input.checkValidity()) input.form.requestSubmit();
         else input.reportValidity();

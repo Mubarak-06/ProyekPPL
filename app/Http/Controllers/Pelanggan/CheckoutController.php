@@ -7,19 +7,20 @@ use App\Models\Alamat;
 use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Models\User;
+use App\Services\MidtransPaymentCoordinator;
+use App\Services\MidtransSnapService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CheckoutController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, MidtransSnapService $snap)
     {
         $keranjang = $request->session()->get('keranjang', []);
         $keranjang = array_intersect_key($keranjang, array_flip($request->session()->get('keranjang_pilihan', array_keys($keranjang))));
-        if (!$keranjang) {
+        if (! $keranjang) {
             return redirect()->route('pelanggan.keranjang')->with('error', 'Keranjang masih kosong.');
         }
         $produk = Produk::with('material')->whereIn('id', array_keys($keranjang))->get();
@@ -37,16 +38,11 @@ class CheckoutController extends Controller
             ->whereIn('kelurahan.id', $alamat->pluck('kelurahan_id'))
             ->select('kelurahan.id', 'nama_kecamatan', 'nama_kota', 'nama_provinsi')
             ->get()->keyBy('id');
-        $metode = DB::table('metode_pembayaran')->where('status', 'aktif')->orderBy('id')->get();
-        foreach ($metode as $item) {
-            $item->tersedia = $item->jenis_metode === 'qris'
-                ? ($item->gambar_qris && Storage::disk('public')->exists($item->gambar_qris))
-                : !empty($item->nomor_rekening);
-        }
+        $metode = $snap->checkoutMethods();
         $alamatDipilih = $alamat->firstWhere('id', $request->input('alamat_id')) ?? $alamat->first();
         $ongkir = $alamatDipilih?->kelurahan?->ongkir;
         $token = $request->session()->get('checkout_token');
-        if (!$token) {
+        if (! $token) {
             $token = Str::random(40);
             $request->session()->put('checkout_token', $token);
         }
@@ -54,47 +50,49 @@ class CheckoutController extends Controller
         return view('pelanggan.checkout', compact('keranjang', 'produk', 'subtotal', 'alamat', 'wilayahAlamat', 'metode', 'alamatDipilih', 'ongkir', 'token'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, MidtransSnapService $snap, MidtransPaymentCoordinator $coordinator)
     {
         $data = $request->validate([
             'alamat_id' => 'required|integer',
-            'metode_pembayaran_id' => 'required|integer',
+            'metode_pembayaran' => 'required|string|max:32',
             'catatan' => 'nullable|string|max:2000',
             'checkout_token' => 'required|string|size:40',
         ]);
-        if (!hash_equals((string) $request->session()->get('checkout_token'), $data['checkout_token'])) {
-            throw ValidationException::withMessages(['checkout' => 'Form checkout sudah digunakan. Silakan buka kembali checkout.']);
-        }
+        $tokenSesuai = hash_equals((string) $request->session()->get('checkout_token'), $data['checkout_token']);
         $keranjang = $request->session()->get('keranjang', []);
         $keranjang = array_intersect_key($keranjang, array_flip($request->session()->get('keranjang_pilihan', array_keys($keranjang))));
 
-        $pesanan = DB::transaction(function () use ($request, $data, $keranjang) {
+        [$pesanan, $baru] = DB::transaction(function () use ($request, $data, $keranjang, $tokenSesuai, $snap) {
             User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
             // Token yang sama tidak boleh membuat dua pesanan saat tombol diklik berulang.
             $sudahAda = DB::table('pembayaran')->join('pesanan', 'pembayaran.pesanan_id', '=', 'pesanan.id')
                 ->where('referensi_pembayaran', $data['checkout_token'])
+                ->where('gateway', 'midtrans')
                 ->where('pesanan.user_id', $request->user()->id)->value('pesanan.id');
             if ($sudahAda) {
-                return Pesanan::findOrFail($sudahAda);
+                return [Pesanan::findOrFail($sudahAda), false];
+            }
+            if (! $tokenSesuai) {
+                throw ValidationException::withMessages(['checkout' => 'Form checkout sudah digunakan. Silakan buka kembali checkout.']);
             }
 
+            if (! isset($snap->checkoutMethods()[$data['metode_pembayaran']])) {
+                throw ValidationException::withMessages(['checkout' => 'Kanal Midtrans Sandbox ini belum tersedia.']);
+            }
             $alamat = Alamat::where('user_id', $request->user()->id)->lockForUpdate()->findOrFail($data['alamat_id']);
             $ongkir = DB::table('ongkir')->where('kelurahan_id', $alamat->kelurahan_id)->lockForUpdate()->first();
-            $metode = DB::table('metode_pembayaran')->where('status', 'aktif')->where('id', $data['metode_pembayaran_id'])->lockForUpdate()->first();
-            if (!$ongkir || !$metode) {
-                throw ValidationException::withMessages(['checkout' => 'Ongkir atau metode pembayaran tidak tersedia. Silakan pilih kembali.']);
-            }
-            $metodeSiap = $metode->jenis_metode === 'qris'
-                ? ($metode->gambar_qris && Storage::disk('public')->exists($metode->gambar_qris))
-                : !empty($metode->nomor_rekening);
-            if (!$metodeSiap) {
-                throw ValidationException::withMessages(['checkout' => 'Informasi metode pembayaran belum lengkap. Silakan pilih metode lain.']);
+            if (! $ongkir) {
+                throw ValidationException::withMessages(['checkout' => 'Ongkos kirim tidak tersedia. Silakan pilih alamat lain.']);
             }
 
             $produk = Produk::whereIn('id', array_keys($keranjang))->orderBy('id')->lockForUpdate()->get();
             $this->validasiProduk($produk, $keranjang);
             $subtotal = $this->subtotal($produk, $keranjang);
-            $total = ($subtotal + (int) round($ongkir->biaya_ongkir * 100)) / 100;
+            $totalSen = $subtotal + (int) round($ongkir->biaya_ongkir * 100);
+            if ($totalSen <= 0 || $totalSen % 100 !== 0) {
+                throw ValidationException::withMessages(['checkout' => 'Total pembayaran harus berupa rupiah bulat positif.']);
+            }
+            $total = intdiv($totalSen, 100);
             $pesanan = Pesanan::create([
                 'kode_pesanan' => 'KA-'.now()->format('Ymd').'-'.strtoupper(Str::random(12)),
                 'user_id' => $request->user()->id,
@@ -118,8 +116,9 @@ class CheckoutController extends Controller
             }
             DB::table('pembayaran')->insert([
                 'pesanan_id' => $pesanan->id,
-                'metode_pembayaran_id' => $metode->id,
-                'metode_pembayaran' => ['transfer_bank' => 'Transfer Bank', 'ewallet' => 'E-Wallet', 'qris' => 'QRIS'][$metode->jenis_metode],
+                'gateway' => 'midtrans',
+                'midtrans_order_id' => $pesanan->kode_pesanan,
+                'metode_pembayaran' => $data['metode_pembayaran'],
                 'jumlah_pembayaran' => $total,
                 'status_pembayaran' => 'Menunggu',
                 'referensi_pembayaran' => $data['checkout_token'],
@@ -140,23 +139,45 @@ class CheckoutController extends Controller
                 'status_pengiriman' => 'Menunggu',
             ]);
 
-            return $pesanan;
+            return [$pesanan, true];
         }, 3);
 
-        $sisa = array_diff_key($request->session()->get('keranjang', []), $keranjang);
-        if ($sisa) {
-            $request->session()->put('keranjang', $sisa);
-        } else {
-            $request->session()->forget('keranjang');
+        if ($baru) {
+            $sisa = array_diff_key($request->session()->get('keranjang', []), $keranjang);
+            if ($sisa) {
+                $request->session()->put('keranjang', $sisa);
+            } else {
+                $request->session()->forget('keranjang');
+            }
+            $request->session()->forget(['keranjang_pilihan', 'checkout_token']);
         }
-        $request->session()->forget(['keranjang_pilihan', 'checkout_token']);
 
-        return redirect()->route('pelanggan.pesanan.show', $pesanan->id)->with('success', 'Pesanan berhasil dibuat. Silakan lakukan pembayaran.');
+        $metodeTersimpan = $pesanan->pembayaran?->metode_pembayaran;
+        if ($metodeTersimpan !== $data['metode_pembayaran']) {
+            return redirect()->route('pelanggan.pembayaran', $pesanan->id)
+                ->with('error', 'Pesanan ini sudah dibuat dengan metode '.$metodeTersimpan.'. Pilihan baru belum diterapkan.');
+        }
+
+        if (isset($snap->checkoutMethods()[$metodeTersimpan])) {
+            if ($metodeTersimpan === 'E-Wallet' && $snap->sandboxClientKey() !== null) {
+                return redirect()->route('pelanggan.pembayaran', $pesanan->id)->with('buka_snap_dana', true);
+            }
+            $result = $coordinator->requestToken($request->user()->id, $pesanan->id);
+            if ($result['status'] === 'ready'
+                && $snap->isSandboxRedirectUrl($result['redirect_url'])) {
+                return redirect()->away($result['redirect_url'], 303, [
+                    'Cache-Control' => 'private, no-store',
+                    'Referrer-Policy' => 'no-referrer',
+                ]);
+            }
+        }
+
+        return redirect()->route('pelanggan.pembayaran', $pesanan->id);
     }
 
     private function validasiProduk($produk, array $keranjang): void
     {
-        if (!$keranjang || $produk->count() !== count($keranjang)) {
+        if (! $keranjang || $produk->count() !== count($keranjang)) {
             throw ValidationException::withMessages(['keranjang' => 'Keranjang kosong atau terdapat produk yang sudah tidak tersedia. Periksa kembali keranjang.']);
         }
         foreach ($produk as $item) {

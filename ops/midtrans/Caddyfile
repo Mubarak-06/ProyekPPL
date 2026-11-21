@@ -1,0 +1,52 @@
+{
+	admin off
+}
+
+http://:8787 {
+	bind 127.0.0.1
+
+	# Keep timestamps and response codes for delivery diagnosis without request data.
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request delete
+				resp_headers delete
+				user_id delete
+			}
+		}
+	}
+
+	@webhook {
+		method POST
+		path /api/webhooks/midtrans
+	}
+
+	handle @webhook {
+		@oversize expression `{http.request.header.Content-Length} != "" && int({http.request.header.Content-Length}) > 65536`
+		respond @oversize 413
+		request_body {
+			max_size 64KiB
+		}
+		reverse_proxy {$PPL_MIDTRANS_WEBHOOK_UPSTREAM:127.0.0.1:8788} {
+			header_up Host 127.0.0.1
+			header_up Accept application/json
+			header_down -Set-Cookie
+			header_down -X-Powered-By
+			header_down -Server
+			@limited status 429
+			handle_response @limited {
+				respond "Too many requests" 429
+			}
+			@upstream_error status 3xx 5xx
+			handle_response @upstream_error {
+				respond "Webhook unavailable" 503
+			}
+		}
+	}
+
+	handle {
+		respond 404
+	}
+}

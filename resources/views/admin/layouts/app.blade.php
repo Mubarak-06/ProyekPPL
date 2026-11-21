@@ -194,6 +194,12 @@
                 Pembayaran
             </a>
 
+            <a href="{{ route('admin.midtrans-rekonsiliasi.index') }}"
+                class="{{ request()->routeIs('admin.midtrans-rekonsiliasi.*') ? 'active' : '' }}">
+                <i class="bi bi-clipboard-check"></i>
+                Rekonsiliasi Midtrans
+            </a>
+
             <a href="{{ route('admin.laporan.index') }}"
                 class="{{ request()->routeIs('admin.laporan.*') ? 'active' : '' }}">
                 <i class="bi bi-bar-chart"></i>

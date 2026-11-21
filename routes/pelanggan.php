@@ -45,5 +45,9 @@ Route::middleware('auth')->name('pelanggan.')->group(function () {
     Route::get('/pesanan', [AkunController::class, 'pesanan'])->name('pesanan');
     Route::get('/pesanan/{id}', [AkunController::class, 'detailPesanan'])->whereNumber('id')->name('pesanan.show');
     Route::get('/pesanan/{id}/pembayaran', [AkunController::class, 'pembayaran'])->whereNumber('id')->name('pembayaran');
+    Route::post('/pesanan/{id}/pembayaran/snap', [AkunController::class, 'tokenSnap'])
+        ->whereNumber('id')->middleware('throttle:10,1')->name('pembayaran.snap');
+    Route::post('/pesanan/{id}/pembayaran/periksa', [AkunController::class, 'periksaStatusSnap'])
+        ->whereNumber('id')->middleware('throttle:5,1')->name('pembayaran.periksa');
     Route::post('/pesanan/{id}/bukti', [AkunController::class, 'unggahBukti'])->whereNumber('id')->middleware('throttle:10,1')->name('pesanan.bukti');
 });
