@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\Pembayaran;
 use App\Models\Pesanan;
 use App\Models\User;
+use App\Services\MidtransSnapService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -86,22 +89,143 @@ class PelangganTest extends PelangganTestCase
     {
         $data = $this->dataBelanja();
         $token = str_repeat('a', 40);
-        $form = ['alamat_id' => $data['alamat'], 'metode_pembayaran_id' => $data['metode'], 'checkout_token' => $token,
+        $form = ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token,
             'subtotal' => 1, 'ongkos_kirim' => 0, 'total_pembayaran' => 1];
         $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 2], 'checkout_token' => $token]);
         $this->get('/checkout')->assertOk()->assertSee('10.000');
-        $this->post('/checkout', $form)->assertRedirect('/pesanan/1')->assertSessionMissing('keranjang');
-        $this->assertDatabaseHas('pesanan', ['subtotal' => 2500.50, 'ongkos_kirim' => 10000, 'total_pembayaran' => 12500.50]);
-        $this->assertDatabaseHas('detail_pesanan', ['jumlah' => 2, 'harga_satuan' => 1250.25]);
-        $this->assertDatabaseHas('pembayaran', ['status_pembayaran' => 'Menunggu', 'metode_pembayaran_id' => $data['metode']]);
+        $this->post('/checkout', $form)->assertRedirect('/pesanan/1/pembayaran')->assertSessionMissing('keranjang');
+        $this->assertDatabaseHas('pesanan', ['subtotal' => 2500, 'ongkos_kirim' => 10000, 'total_pembayaran' => 12500]);
+        $this->assertDatabaseHas('detail_pesanan', ['jumlah' => 2, 'harga_satuan' => 1250]);
+        $this->assertDatabaseHas('pembayaran', ['status_pembayaran' => 'Menunggu', 'gateway' => 'midtrans', 'metode_pembayaran_id' => null]);
         $this->assertDatabaseHas('pengiriman', ['status_pengiriman' => 'Menunggu', 'nama_penerima' => 'Penerima Pengujian']);
         $this->assertSame(8, $data['produk']->fresh()->stok);
-        // Meniru dua permintaan bersamaan yang membawa salinan session yang sama.
-        $this->withSession(['keranjang' => [$data['produk']->id => 2], 'checkout_token' => $token])
-            ->post('/checkout', $form)->assertRedirect('/pesanan/1');
+        $this->post('/checkout', $form)->assertRedirect('/pesanan/1/pembayaran');
         $this->assertDatabaseCount('pesanan', 1);
         $this->assertSame(8, $data['produk']->fresh()->stok);
-        $this->get('/pesanan/1')->assertOk()->assertSee('BCA');
+        $this->get('/pesanan/1')->assertOk()->assertSee('Transfer Bank');
+    }
+
+    public function test_checkout_snap_uses_one_token_and_only_server_verification_settles(): void
+    {
+        $data = $this->dataBelanja();
+        $token = str_repeat('z', 40);
+        $url = 'https://app.sandbox.midtrans.com/snap/v4/redirection/fake-snap-session';
+        $form = ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token];
+        $gateway = $this->partialMock(MidtransSnapService::class);
+        $gateway->shouldReceive('requestSnapToken')->once()->withArgs(function ($order, $payment) {
+            $parameters = (new MidtransSnapService)->buildTransactionParameters($order, $payment);
+            $this->assertSame(['bca_va'], $parameters['enabled_payments']);
+            $this->assertSame(['order_id' => $order->kode_pesanan, 'gross_amount' => 12500], $parameters['transaction_details']);
+
+            return true;
+        })->andReturn([
+            'status' => 'ready', 'token' => 'fake-snap-token', 'redirect_url' => $url,
+            'snap_token_expires_at' => CarbonImmutable::now()->addMinutes(10),
+        ]);
+        $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 2], 'checkout_token' => $token])
+            ->post('/checkout', $form)->assertStatus(303)->assertRedirect($url)->assertSessionMissing('keranjang');
+        $this->post('/checkout', $form)->assertStatus(303)->assertRedirect($url);
+        $this->post('/checkout', ['metode_pembayaran' => 'QRIS'] + $form)
+            ->assertRedirect('/pesanan/1/pembayaran')->assertSessionHas('error');
+        $this->assertDatabaseCount('pesanan', 1);
+        $order = Pesanan::findOrFail(1);
+        $notice = [
+            'order_id' => $order->kode_pesanan, 'transaction_id' => 'va-fixture', 'gross_amount' => '12500.00',
+            'status_code' => '200', 'transaction_status' => 'settlement', 'payment_type' => 'bank_transfer',
+        ];
+        $gateway->shouldReceive('getTransactionStatus')->once()->with('va-fixture')->andReturn((object) $notice);
+
+        $this->get('/pesanan/1/pembayaran')->assertOk()->assertSee('Menunggu pembayaran')
+            ->assertSee('test-only-client')->assertDontSee('test-only-server');
+        foreach (range(1, 2) as $unused) {
+            $this->postJson('/pesanan/1/pembayaran/snap', ['status_pembayaran' => 'Berhasil'])
+                ->assertExactJson(['status' => 'ready', 'token' => 'fake-snap-token', 'redirect_url' => $url]);
+        }
+        $this->assertDatabaseHas('pembayaran', ['id' => 1, 'status_pembayaran' => 'Menunggu']);
+        $this->actingAs(User::factory()->create())->postJson('/pesanan/1/pembayaran/snap')->assertNotFound();
+        $this->postJson('/pesanan/1/pembayaran/periksa')->assertNotFound();
+        $gateway->shouldReceive('getTransactionStatus')->once()->with($order->kode_pesanan)->andReturn((object) $notice);
+        $this->actingAs($data['user'])->post('/pesanan/1/pembayaran/periksa', ['status_pembayaran' => 'Berhasil'])
+            ->assertRedirect('/pesanan/1/pembayaran')->assertSessionHas('status_midtrans', 'Pembayaran berhasil diverifikasi oleh Midtrans.');
+        $this->assertDatabaseHas('pembayaran', ['id' => 1, 'status_pembayaran' => 'Berhasil', 'midtrans_transaction_id' => 'va-fixture']);
+        $notice['signature_key'] = hash('sha512', $notice['order_id'].'20012500.00test-only-server');
+        $this->postJson('/api/webhooks/midtrans', $notice)->assertOk();
+        $this->actingAs($data['user'])->get('/pesanan/1/pembayaran')->assertSee('Pembayaran berhasil')
+            ->assertDontSee('fake-snap-token')->assertDontSee($url);
+        $this->assertSame(8, $data['produk']->fresh()->stok);
+    }
+
+    public function test_dana_uses_hosted_sandbox_when_popup_key_is_for_production(): void
+    {
+        config(['services.midtrans.client_key' => 'Mid-client-test-production', 'services.midtrans.sandbox_channels' => ['dana'],
+            'services.midtrans.sandbox_verified_channels' => ['dana']]);
+        $data = $this->dataBelanja();
+        $token = str_repeat('d', 40);
+        $url = 'https://app.sandbox.midtrans.com/snap/v4/redirection/dana-session';
+        $gateway = $this->partialMock(MidtransSnapService::class);
+        $gateway->shouldReceive('requestSnapToken')->once()->andReturn([
+            'status' => 'ready', 'token' => 'fake-dana-token', 'redirect_url' => $url,
+            'snap_token_expires_at' => CarbonImmutable::now()->addMinutes(10),
+        ]);
+
+        $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 1], 'checkout_token' => $token])
+            ->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'E-Wallet', 'checkout_token' => $token])
+            ->assertStatus(303)->assertRedirect($url);
+        $this->get('/pesanan/1/pembayaran?transaction_id=dana-test-id')
+            ->assertOk()->assertSee('dana-test-id')->assertDontSee('Mid-client-test-production')
+            ->assertDontSee('/snap/snap.js')->assertSee('Buka pembayaran Snap');
+        $this->postJson('/pesanan/1/pembayaran/snap')
+            ->assertExactJson(['status' => 'ready', 'redirect_url' => $url]);
+
+        $order = Pesanan::findOrFail(1);
+        $gateway->shouldReceive('getTransactionStatus')->once()->with('wrong-dana-id')->andReturn((object) [
+            'order_id' => 'KA-OTHER-ORDER', 'transaction_id' => 'wrong-dana-id', 'gross_amount' => '11250.00',
+            'status_code' => '200', 'transaction_status' => 'settlement', 'payment_type' => 'dana', 'currency' => 'IDR',
+        ]);
+        $this->postJson('/pesanan/1/pembayaran/periksa', ['transaction_id' => 'wrong-dana-id'])
+            ->assertJsonPath('status', 'unavailable');
+        $this->assertDatabaseHas('pembayaran', ['pesanan_id' => 1, 'status_pembayaran' => 'Menunggu']);
+        $gateway->shouldReceive('getTransactionStatus')->once()->with('dana-test-id')->andReturn((object) [
+            'order_id' => $order->kode_pesanan, 'transaction_id' => 'dana-test-id', 'gross_amount' => '11250.00',
+            'status_code' => '200', 'transaction_status' => 'settlement', 'payment_type' => 'dana', 'currency' => 'IDR',
+        ]);
+        $this->postJson('/pesanan/1/pembayaran/periksa', ['transaction_id' => 'dana-test-id'])
+            ->assertJsonPath('status', 'applied');
+        $this->assertDatabaseHas('pembayaran', ['pesanan_id' => 1, 'status_pembayaran' => 'Berhasil']);
+        $this->assertSame(9, $data['produk']->fresh()->stok);
+    }
+
+    public function test_sandbox_candidates_do_not_open_checkout_without_verification(): void
+    {
+        config([
+            'services.midtrans.sandbox_channels' => ['bca_va', 'bni_va', 'bri_va', 'echannel', 'dana', 'other_qris'],
+            'services.midtrans.sandbox_verified_channels' => [],
+        ]);
+        $data = $this->dataBelanja();
+        $token = str_repeat('v', 40);
+        $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 2], 'checkout_token' => $token]);
+        $this->get('/checkout')->assertOk()->assertViewHas('metode', [])->assertSee('Kanal pembayaran Midtrans belum tersedia.');
+        $this->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token])
+            ->assertSessionHasErrors('checkout');
+        $this->assertDatabaseCount('pesanan', 0);
+        $this->assertSame(10, $data['produk']->fresh()->stok);
+
+        config(['services.midtrans.sandbox_verified_channels' => ['bni_va', 'bri_va', 'echannel', 'dana', 'other_qris', 'permata_va']]);
+        $expected = ['Transfer Bank' => ['bni_va', 'bri_va', 'echannel'], 'QRIS' => ['other_qris'], 'E-Wallet' => ['dana']];
+        $this->get('/checkout')->assertViewHas('metode', $expected);
+        foreach ($expected as $method => $channels) {
+            $order = (new Pesanan)->newFromBuilder(['id' => 1, 'total_pembayaran' => '12500.00']);
+            $payment = (new Pembayaran)->newFromBuilder([
+                'id' => 1, 'pesanan_id' => 1, 'gateway' => 'midtrans', 'midtrans_order_id' => 'ORDER-FIXTURE',
+                'jumlah_pembayaran' => '12500.00', 'metode_pembayaran' => $method,
+            ]);
+            $this->assertSame($channels, (new MidtransSnapService)->buildTransactionParameters($order, $payment)['enabled_payments']);
+        }
+
+        config(['services.midtrans.is_production' => true]);
+        $this->get('/checkout')->assertViewHas('metode', []);
+        $this->expectException(\InvalidArgumentException::class);
+        (new MidtransSnapService)->buildTransactionParameters($order, $payment);
     }
 
     public function test_checkout_menolak_stok_berubah_tanpa_menyimpan_transaksi(): void
@@ -109,7 +233,7 @@ class PelangganTest extends PelangganTestCase
         $data = $this->dataBelanja();
         $token = str_repeat('b', 40);
         $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 11], 'checkout_token' => $token])
-            ->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran_id' => $data['metode'], 'checkout_token' => $token])
+            ->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token])
             ->assertSessionHasErrors('keranjang');
         $this->assertDatabaseCount('pesanan', 0);
         $this->assertSame(10, $data['produk']->fresh()->stok);
@@ -126,7 +250,7 @@ class PelangganTest extends PelangganTestCase
         });
         $token = str_repeat('f', 40);
         $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 2], 'checkout_token' => $token])
-            ->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran_id' => $data['metode'], 'checkout_token' => $token])
+            ->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token])
             ->assertStatus(500)->assertSessionHas('keranjang.'.$data['produk']->id, 2);
         foreach (['pesanan', 'detail_pesanan', 'pembayaran', 'pengiriman'] as $table) {
             $this->assertDatabaseCount($table, 0);
@@ -155,11 +279,11 @@ class PelangganTest extends PelangganTestCase
     {
         $data = $this->dataBelanja();
         $token = str_repeat('c', 40);
-        $form = ['alamat_id' => $data['alamat'], 'metode_pembayaran_id' => $data['metode'], 'checkout_token' => $token];
+        $form = ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token];
         $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 1], 'checkout_token' => $token]);
-        DB::table('metode_pembayaran')->update(['status' => 'nonaktif']);
+        config(['services.midtrans.sandbox_channels' => []]);
         $this->post('/checkout', $form)->assertSessionHasErrors('checkout');
-        DB::table('metode_pembayaran')->update(['status' => 'aktif']);
+        config(['services.midtrans.sandbox_channels' => ['bca_va']]);
         DB::table('ongkir')->delete();
         $this->post('/checkout', $form)->assertSessionHasErrors('checkout');
         $this->assertDatabaseCount('pesanan', 0);
@@ -176,7 +300,7 @@ class PelangganTest extends PelangganTestCase
         $this->get('/pesanan')->assertOk()->assertDontSee($pesanan->kode_pesanan);
         $token = str_repeat('d', 40);
         $this->withSession(['keranjang' => [$data['produk']->id => 1], 'checkout_token' => $token])
-            ->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran_id' => $data['metode'], 'checkout_token' => $token])
+            ->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token])
             ->assertNotFound();
         $this->assertDatabaseCount('pesanan', 1);
     }
@@ -225,11 +349,6 @@ class PelangganTest extends PelangganTestCase
 
     private function buatPesanan(array $data): Pesanan
     {
-        $token = str_repeat('e', 40);
-        $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 2], 'checkout_token' => $token])
-            ->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran_id' => $data['metode'], 'checkout_token' => $token])
-            ->assertSessionHasNoErrors();
-
-        return Pesanan::latest('id')->firstOrFail();
+        return $this->legacyOrder($data);
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\PesananController;
 use App\Http\Controllers\Admin\PengirimanController;
 use App\Http\Controllers\Admin\PembayaranController;
 use App\Http\Controllers\Admin\LaporanController;
+use App\Http\Controllers\Admin\MidtransRekonsiliasiController;
 use App\Http\Controllers\Pelanggan\ProdukController as ProdukPelangganController;
 use App\Http\Middleware\BahasaPelanggan;
 use Illuminate\Support\Facades\Route;
@@ -209,6 +210,17 @@ Route::get('/admin/pengiriman/{id}', [PengirimanController::class, 'show'])
 
 Route::get('/admin/pembayaran', [PembayaranController::class, 'index'])
     ->name('admin.pembayaran.index');
+
+Route::get('/admin/rekonsiliasi-midtrans', [MidtransRekonsiliasiController::class, 'index'])
+    ->name('admin.midtrans-rekonsiliasi.index');
+
+Route::get('/admin/rekonsiliasi-midtrans/{id}', [MidtransRekonsiliasiController::class, 'show'])
+    ->whereNumber('id')
+    ->name('admin.midtrans-rekonsiliasi.show');
+
+Route::post('/admin/rekonsiliasi-midtrans/{id}/periksa', [MidtransRekonsiliasiController::class, 'review'])
+    ->whereNumber('id')->middleware('throttle:10,1')
+    ->name('admin.midtrans-rekonsiliasi.review');
 
 Route::get('/admin/pembayaran/metode', [PembayaranController::class, 'metode'])
     ->name('admin.pembayaran.metode');

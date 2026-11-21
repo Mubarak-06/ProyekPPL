@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="{{ asset('css/pelanggan.css') }}?v={{ hash_file('sha256', public_path('css/pelanggan.css')) }}">
-    <script src="{{ asset('js/pelanggan.js') }}" defer></script>
+    <script src="{{ asset('js/pelanggan.js') }}?v={{ hash_file('sha256', public_path('js/pelanggan.js')) }}" defer></script>
 </head>
 <body class="pelanggan @yield('body-class')">
     @unless(View::hasSection('auth-content'))

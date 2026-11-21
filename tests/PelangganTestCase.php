@@ -2,8 +2,10 @@
 
 namespace Tests;
 
+use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Models\User;
+use App\Services\MidtransSnapService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -74,6 +76,9 @@ abstract class PelangganTestCase extends TestCase
         });
 
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+
+        $this->partialMock(MidtransSnapService::class)
+            ->shouldReceive('requestSnapToken')->andReturn(['status' => 'unknown'])->byDefault();
     }
 
     protected function akunAdmin(): User
@@ -104,9 +109,32 @@ abstract class PelangganTestCase extends TestCase
         ]);
         $produk = Produk::create([
             'kode_barang' => 'UJI-001', 'nama_produk' => 'Baut Pengujian', 'kategori_id' => 1,
-            'satuan_id' => 1, 'berat' => 1, 'harga' => '1250.25', 'stok' => 10,
+            'satuan_id' => 1, 'berat' => 1, 'harga' => '1250.00', 'stok' => 10,
         ]);
 
         return compact('user', 'alamat', 'metode', 'produk');
+    }
+
+    protected function legacyOrder(array $data): Pesanan
+    {
+        $this->actingAs($data['user']);
+        $order = Pesanan::create([
+            'kode_pesanan' => 'LEGACY-TEST', 'user_id' => $data['user']->id, 'alamat_id' => $data['alamat'],
+            'subtotal' => 2500, 'ongkos_kirim' => 10000, 'total_pembayaran' => 12500, 'status_pesanan' => 'Menunggu',
+        ]);
+        $order->detailPesanan()->create([
+            'produk_id' => $data['produk']->id, 'nama_produk' => $data['produk']->nama_produk,
+            'harga_satuan' => 1250, 'jumlah' => 2, 'subtotal' => 2500,
+        ]);
+        $data['produk']->decrement('stok', 2);
+        $order->pembayaran()->create([
+            'metode_pembayaran' => 'Transfer Bank', 'jumlah_pembayaran' => 12500, 'status_pembayaran' => 'Menunggu',
+        ])->forceFill(['metode_pembayaran_id' => $data['metode']])->save();
+        $order->pengiriman()->create([
+            'nama_penerima' => 'Penerima Pengujian', 'nomor_telepon' => '081234567890',
+            'alamat_pengiriman' => 'Alamat Pengujian', 'ongkos_kirim' => 10000, 'status_pengiriman' => 'Menunggu',
+        ]);
+
+        return $order;
     }
 }

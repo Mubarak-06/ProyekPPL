@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Alamat;
 use App\Models\Pesanan;
-use App\Models\Produk;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Http\UploadedFile;
@@ -81,7 +80,7 @@ class PelangganLanjutanTest extends PelangganTestCase
         $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 2, $lain->id => 3], 'checkout_token' => $token]);
         $this->post('/keranjang/pilihan', ['pilihan' => [$data['produk']->id]])->assertSessionHas('keranjang_pilihan', [$data['produk']->id]);
         $this->get('/checkout')->assertOk()->assertDontSee($lain->nama_produk);
-        $this->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran_id' => $data['metode'], 'checkout_token' => $token])->assertSessionHasNoErrors()
+        $this->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token])->assertSessionHasNoErrors()
             ->assertSessionHas('keranjang.'.$lain->id, 3)->assertSessionMissing('keranjang.'.$data['produk']->id);
         $this->assertDatabaseCount('detail_pesanan', 1);
         $this->assertSame(10, $lain->fresh()->stok);
@@ -107,7 +106,7 @@ class PelangganLanjutanTest extends PelangganTestCase
         $this->get('/checkout')->assertOk()->assertSessionHasNoErrors();
         $token = str_repeat('j', 40);
         $this->withSession(['keranjang' => [$data['produk']->id => '2'], 'checkout_token' => $token])
-            ->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran_id' => $data['metode'], 'checkout_token' => $token])
+            ->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token])
             ->assertSessionHasNoErrors();
         $this->assertDatabaseHas('detail_pesanan', ['jumlah' => 2]);
         $this->assertSame(8, $data['produk']->fresh()->stok);
@@ -115,13 +114,12 @@ class PelangganLanjutanTest extends PelangganTestCase
 
     public function test_metode_belum_lengkap_tidak_bisa_dipakai_checkout(): void
     {
-        Storage::fake('public');
         $data = $this->dataBelanja();
-        DB::table('metode_pembayaran')->where('id', $data['metode'])->update(['jenis_metode' => 'qris', 'nama_penyedia' => 'QRIS', 'gambar_qris' => null]);
+        config(['services.midtrans.sandbox_channels' => []]);
         $token = str_repeat('q', 40);
         $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 1], 'checkout_token' => $token]);
-        $this->get('/checkout')->assertOk()->assertSee('informasi pembayaran belum lengkap');
-        $this->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran_id' => $data['metode'], 'checkout_token' => $token])
+        $this->get('/checkout')->assertOk()->assertSee('Kanal pembayaran Midtrans belum tersedia.');
+        $this->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token])
             ->assertSessionHasErrors('checkout');
         $this->assertDatabaseCount('pesanan', 0);
         $this->assertSame(10, $data['produk']->fresh()->stok);
@@ -180,30 +178,17 @@ class PelangganLanjutanTest extends PelangganTestCase
     public function test_checkout_mengelompokkan_penyedia_aktif_tanpa_mengaktifkan_metode_belum_siap(): void
     {
         $data = $this->dataBelanja();
-        $bri = DB::table('metode_pembayaran')->insertGetId([
-            'jenis_metode' => 'transfer_bank', 'nama_penyedia' => 'BRI', 'status' => 'aktif',
-            'nomor_rekening' => '123456789', 'nama_pemilik' => 'Pemilik Pengujian',
-        ]);
-        DB::table('metode_pembayaran')->insert([
-            ['jenis_metode' => 'ewallet', 'nama_penyedia' => 'Dompet Nonaktif', 'status' => 'nonaktif'],
-            ['jenis_metode' => 'qris', 'nama_penyedia' => 'QRIS', 'status' => 'aktif'],
-        ]);
         $response = $this->actingAs($data['user'])
             ->withSession(['keranjang' => [$data['produk']->id => 2]])->get('/checkout');
         $response->assertOk()->assertSee('Transfer Bank')->assertSee('E-Wallet')->assertSee('QRIS')
-            ->assertSee('data-penyedia-metode="metode-transfer_bank"', false)
-            ->assertSee('value="'.$bri.'"', false)->assertDontSee('Dompet Nonaktif')
-            ->assertViewHas('metode', fn ($metode) => !$metode->firstWhere('jenis_metode', 'qris')->tersedia);
-        $this->assertSame(3, substr_count($response->getContent(), 'name="metode_pembayaran_id"'));
+            ->assertViewHas('metode', ['Transfer Bank' => ['bca_va']])
+            ->assertDontSee('Pemilik Pengujian')->assertDontSee('test-only-server');
+        $this->assertSame(3, substr_count($response->getContent(), 'name="metode_pembayaran"'));
         $this->assertDatabaseCount('pesanan', 0);
     }
 
     private function pesan(array $data): Pesanan
     {
-        $token = str_repeat('r', 40);
-        $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 2], 'checkout_token' => $token])
-            ->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran_id' => $data['metode'], 'checkout_token' => $token])
-            ->assertSessionHasNoErrors();
-        return Pesanan::latest('id')->firstOrFail();
+        return $this->legacyOrder($data);
     }
 }

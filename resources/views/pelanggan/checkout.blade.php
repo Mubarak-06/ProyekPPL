@@ -29,35 +29,27 @@
                 <p>Pilih salah satu metode pembayaran yang tersedia.</p>
                 @php
                     $jenisPembayaran = [
-                        'transfer_bank' => ['Transfer Bank', 'bank', 'Pembayaran melalui transfer bank.'],
-                        'ewallet' => ['E-Wallet', 'wallet2', 'Pembayaran menggunakan dompet digital.'],
-                        'qris' => ['QRIS', 'qr-code', 'Pembayaran dengan scan QRIS.'],
+                        'Transfer Bank' => ['Transfer Bank', 'bank', 'Pembayaran melalui virtual account.'],
+                        'E-Wallet' => ['E-Wallet', 'wallet2', 'Pembayaran menggunakan DANA.'],
+                        'QRIS' => ['QRIS', 'qr-code', 'Pembayaran dengan scan QRIS.'],
                     ];
-                    $metodeSiap = $metode->where('tersedia', true);
-                    $metodeAwal = $metodeSiap->firstWhere('id', old('metode_pembayaran_id')) ?? $metodeSiap->first();
-                    $jenisAwal = $metodeAwal?->jenis_metode ?? array_key_first($jenisPembayaran);
+                    $pilihanLama = old('metode_pembayaran');
+                    $jenisAwal = is_string($pilihanLama) && isset($metode[$pilihanLama])
+                        ? $pilihanLama
+                        : (count($metode) === 1 ? array_key_first($metode) : null);
                 @endphp
                 <form id="form-checkout" action="{{ route('pelanggan.checkout.store') }}" method="POST">
                     @csrf
                     <input type="hidden" name="checkout_token" value="{{ $token }}">
                     <input type="hidden" name="alamat_id" value="{{ $alamatDipilih?->id }}">
                     @foreach($jenisPembayaran as $jenis => [$nama, $ikon, $deskripsi])
-                        @php
-                            $penyedia = $metode->where('jenis_metode', $jenis);
-                            $namaPenyedia = $jenis === 'ewallet' && $penyedia->isEmpty() ? ['DANA'] : $penyedia->pluck('nama_penyedia');
-                            $siap = $metodeSiap->where('jenis_metode', $jenis);
-                            $terpilih = $siap->firstWhere('id', $metodeAwal?->id) ?? $siap->first();
-                        @endphp
                         <div class="grup-pembayaran">
-                            <label class="pilihan-bayar" for="metode-{{ $jenis }}">
-                                <input id="metode-{{ $jenis }}" type="radio" name="metode_pembayaran_id" value="{{ $terpilih?->id }}" data-jenis-metode="{{ $jenis }}" @checked($jenis === $jenisAwal) required>
+                            <label class="pilihan-bayar" for="metode-{{ $loop->index }}">
+                                <input id="metode-{{ $loop->index }}" type="radio" name="metode_pembayaran" value="{{ $jenis }}" @checked($jenis === $jenisAwal) @disabled(!isset($metode[$jenis])) required>
                                 <i class="bi bi-{{ $ikon }}" aria-hidden="true"></i>
                                 <span class="deskripsi-metode"><strong>{{ $nama }}</strong><small>{{ $deskripsi }}</small></span>
-                                <span class="label-penyedia">@foreach($namaPenyedia as $namaProvider)<span>{{ $namaProvider }}</span>@endforeach</span>
+                                <span class="label-penyedia"><span>{{ isset($metode[$jenis]) ? 'Midtrans' : 'Belum tersedia' }}</span></span>
                             </label>
-                            @if($siap->count() > 1)
-                                <div class="pilih-penyedia"><label for="penyedia-{{ $jenis }}">Pilih penyedia {{ $nama }}</label><select id="penyedia-{{ $jenis }}" data-penyedia-metode="metode-{{ $jenis }}">@foreach($siap as $provider)<option value="{{ $provider->id }}" @selected($terpilih?->id === $provider->id)>{{ $provider->nama_penyedia }}</option>@endforeach</select></div>
-                            @endif
                         </div>
                     @endforeach
                     <details class="catatan-checkout" @if(old('catatan')) open @endif><summary>Catatan (opsional)</summary><label class="sr-only" for="catatan">Catatan pesanan</label><textarea id="catatan" name="catatan" maxlength="2000">{{ old('catatan') }}</textarea></details>
@@ -78,7 +70,10 @@
             @elseif($alamatDipilih)
                 <p role="alert">Tarif ongkir untuk alamat ini belum tersedia. Pilih alamat lain.</p>
             @endif
-            <button class="tombol-penuh" type="button" form="form-checkout" data-pemberitahuan-pembayaran><i class="bi bi-credit-card" aria-hidden="true"></i> Bayar Sekarang</button>
+            @if(!$metode)
+                <p role="status">Kanal pembayaran Midtrans belum tersedia.</p>
+            @endif
+            <button class="tombol-penuh" type="submit" form="form-checkout" @disabled(!$metode || !$ongkir)><i class="bi bi-credit-card" aria-hidden="true"></i> Bayar Sekarang</button>
         </aside>
     </div>
 @endsection
