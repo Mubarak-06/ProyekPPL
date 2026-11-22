@@ -281,7 +281,7 @@
 
                 <tbody>
                     @forelse($pembayaran as $item)
-                                <tr>
+                                <tr data-payment-id="{{ $item->id }}">
                                     <td>{{ $loop->iteration }}</td>
 
                                     {{-- Kode Pesanan --}}
@@ -437,6 +437,44 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Menampilkan jumlah data awal
     filterPembayaran();
+
+    // Perbarui status dari database tanpa memuat ulang halaman atau mengubah filter.
+    const statusClasses = {Berhasil: 'success', Menunggu: 'pending', Gagal: 'failed'};
+    async function refreshStatusPembayaran() {
+        if (!document.hidden && barisPembayaran.length) {
+            try {
+                const response = await fetch(window.location.pathname, {
+                    headers: {Accept: 'application/json'},
+                    signal: AbortSignal.timeout(10000),
+                });
+                if (response.ok && !response.redirected) {
+                    const statuses = new Map((await response.json()).map(payment => [String(payment.id), payment]));
+                    barisPembayaran.forEach(baris => {
+                        const payment = statuses.get(baris.dataset.paymentId);
+                        if (!payment || !Object.hasOwn(statusClasses, payment.status_pembayaran)) return;
+                        const status = baris.querySelector('[data-status]');
+                        const badge = status.querySelector('.pb-status');
+                        if (badge) {
+                            status.dataset.status = payment.status_pembayaran;
+                            badge.className = 'pb-status ' + statusClasses[payment.status_pembayaran];
+                            badge.textContent = payment.status_pembayaran;
+                        }
+                        const date = baris.querySelector('[data-tanggal]');
+                        date.dataset.tanggal = (payment.waktu_pembayaran || payment.created_at || '').slice(0, 10);
+                        const time = payment.waktu_pembayaran;
+                        date.textContent = time
+                            ? time.slice(0, 10).split('-').reverse().join('/') + ' ' + time.slice(11, 16)
+                            : '-';
+                    });
+                    filterPembayaran();
+                }
+            } catch {
+                // Pertahankan data yang tampil saat pembaruan sementara gagal.
+            }
+        }
+        setTimeout(refreshStatusPembayaran, 60000);
+    }
+    setTimeout(refreshStatusPembayaran, 60000);
 
 });
 </script>

@@ -16,6 +16,20 @@ class MidtransPaymentCoordinator
 {
     public function __construct(private readonly MidtransSnapService $snap) {}
 
+    public function canOfferPayment(Pesanan $order): bool
+    {
+        $payment = $order->pembayaran;
+
+        return $payment !== null
+            && $this->isPayable($order, $payment)
+            && filled($payment->midtrans_order_id)
+            && isset($this->snap->checkoutMethods()[$payment->metode_pembayaran])
+            && $payment->rekonsiliasiAktif->isEmpty()
+            && ($this->canReuseSession($payment)
+                || (! $this->hasLocalSession($payment) && $payment->snap_requested_at === null
+                    && $payment->midtrans_status === null && $payment->midtrans_transaction_id === null));
+    }
+
     /**
      * Gunakan ID pengguna terautentikasi. Token dan URL pada hasil ready hanya untuk pemilik pesanan.
      *
@@ -38,12 +52,13 @@ class MidtransPaymentCoordinator
             if (! is_string($payment->midtrans_order_id) || $payment->midtrans_order_id === '') {
                 return ['status' => 'rejected'];
             }
+            if ($payment->rekonsiliasiAktif()->exists()) {
+                return ['status' => 'needs_reconciliation'];
+            }
 
-            $hasLocalSession = $payment->getRawOriginal('snap_token') !== null
-                || $payment->getRawOriginal('snap_redirect_url') !== null
-                || $payment->snap_token_expires_at !== null;
+            $hasLocalSession = $this->hasLocalSession($payment);
             $gatewayActivity = $payment->midtrans_transaction_id !== null || $payment->midtrans_status !== null;
-            if (! $gatewayActivity && $payment->snap_token_expires_at?->isFuture()) {
+            if ($this->canReuseSession($payment)) {
                 try {
                     $this->snap->buildTransactionParameters($order, $payment);
                     $token = $payment->snap_token;
@@ -151,6 +166,22 @@ class MidtransPaymentCoordinator
             && $payment->gateway === 'midtrans'
             && $payment->status_pembayaran === 'Menunggu'
             && $payment->waktu_pembayaran === null;
+    }
+
+    private function hasLocalSession(Pembayaran $payment): bool
+    {
+        return $payment->getRawOriginal('snap_token') !== null
+            || $payment->getRawOriginal('snap_redirect_url') !== null
+            || $payment->snap_token_expires_at !== null;
+    }
+
+    private function canReuseSession(Pembayaran $payment): bool
+    {
+        return $payment->snap_token_expires_at?->isFuture()
+            && $payment->getRawOriginal('snap_token') !== null
+            && $payment->getRawOriginal('snap_redirect_url') !== null
+            && ($payment->midtrans_status === 'pending'
+                || ($payment->midtrans_status === null && $payment->midtrans_transaction_id === null));
     }
 
     private function flagReconciliation(Pembayaran $payment, string $gatewayId, string $reason, bool $reuseUnknown = false): array

@@ -10,8 +10,14 @@ use Illuminate\Support\Facades\Storage;
 
 class PembayaranController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        if ($request->expectsJson()) {
+            return response()->json(DB::table('pembayaran')
+                ->get(['id', 'status_pembayaran', 'waktu_pembayaran', 'created_at']))
+                ->header('Cache-Control', 'private, no-store');
+        }
+
         $pembayaran = DB::table('pembayaran')
             ->join('pesanan', 'pembayaran.pesanan_id', '=', 'pesanan.id')
             ->join('users', 'pesanan.user_id', '=', 'users.id')

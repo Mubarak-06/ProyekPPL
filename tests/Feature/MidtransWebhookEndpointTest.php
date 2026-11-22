@@ -64,7 +64,7 @@ class MidtransWebhookEndpointTest extends TestCase
         return [
             'applied' => [['status' => 'applied', 'reason' => 'payment_verified'], 200, 'OK'],
             'reconciled' => [['status' => 'needs_reconciliation', 'reason' => 'funds_reversed'], 200, 'OK'],
-            'gateway timeout durably reconciled' => [['status' => 'needs_reconciliation', 'reason' => 'verification_unavailable'], 200, 'OK'],
+            'gateway timeout can be retried' => [['status' => 'unavailable', 'reason' => 'gateway_unavailable'], 503, 'Temporarily unavailable'],
             'unavailable before acceptance' => [['status' => 'unavailable', 'reason' => 'invalid_configuration'], 503, 'Temporarily unavailable'],
             'invalid signature' => [['status' => 'rejected', 'reason' => 'invalid_signature'], 403, 'Forbidden'],
             'invalid payload fields' => [['status' => 'rejected', 'reason' => 'invalid_payload'], 400, 'Invalid payload'],

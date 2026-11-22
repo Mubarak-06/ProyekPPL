@@ -37,7 +37,7 @@ class MidtransWebhookService
             return ['status' => 'rejected', 'reason' => 'invalid_payload'];
         }
 
-        $key = config('services.midtrans.server_key');
+        $key = config('services.midtrans.signature_secret_key') ?? config('services.midtrans.server_key');
         if (config('services.midtrans.is_production') !== false || ! is_string($key) || trim($key) === '') {
             return ['status' => 'unavailable', 'reason' => 'invalid_configuration'];
         }
@@ -55,7 +55,12 @@ class MidtransWebhookService
         try {
             $response = $this->snap->getTransactionStatus($notice['transaction_id']);
             $verified = $this->verifiedData((array) $response);
-        } catch (InvalidArgumentException|RuntimeException) {
+        } catch (RuntimeException $exception) {
+            if ($exception->getCode() !== 404) {
+                return ['status' => 'unavailable', 'reason' => 'gateway_unavailable'];
+            }
+            $verified = null;
+        } catch (InvalidArgumentException) {
             $verified = null;
         }
 
@@ -90,6 +95,15 @@ class MidtransWebhookService
 
     private function verifiedData(array $response): ?array
     {
+        $merchant = config('services.midtrans.sandbox_merchant_id');
+        if (filled($merchant) && ($response['merchant_id'] ?? null) !== $merchant) {
+            return null;
+        }
+
+        // DANA Get Status can return uppercase statuses. Normalize only the authenticated response.
+        if (($response['payment_type'] ?? null) === 'dana' && is_string($response['transaction_status'] ?? null)) {
+            $response['transaction_status'] = strtolower($response['transaction_status']);
+        }
         $verified = $this->transactionData($response);
         if ($verified !== null && $verified['transaction_status'] === 'settlement' && $verified['payment_type'] === 'bank_transfer') {
             $verified['va_amount_matches'] = $this->matchesOptionalVaPaymentAmount($response, $verified['gross_amount']);
@@ -158,6 +172,28 @@ class MidtransWebhookService
         if ($status === 'deny' && $payment->status_pembayaran === 'Berhasil' && $payment->midtrans_transaction_id === $id) {
             return $this->reconcile($payment, 'possible_payment_reversal', $verified, priority: true);
         }
+        $terminalFailure = $status === 'expire'
+            || (in_array($status, ['cancel', 'deny'], true) && $payment->midtrans_transaction_id === $id);
+        $failureReason = $status === 'expire' ? 'payment_expired' : 'payment_failed';
+        if ($terminalFailure && $payment->status_pembayaran === 'Gagal'
+            && $payment->midtrans_status === $status && $payment->midtrans_transaction_id === $id) {
+            return ['status' => 'acknowledged', 'reason' => $failureReason];
+        }
+        if ($terminalFailure && $payment->status_pembayaran === 'Menunggu' && $payment->waktu_pembayaran === null
+            && ($payment->midtrans_transaction_id === null || $payment->midtrans_transaction_id === $id)) {
+            if (Pembayaran::where('midtrans_transaction_id', $id)->whereKeyNot($payment->getKey())->exists()) {
+                return $this->reconcile($payment, 'transaction_conflict', $verified);
+            }
+
+            $payment->update([
+                'status_pembayaran' => 'Gagal',
+                'midtrans_status' => $status,
+                'midtrans_payment_type' => $type,
+                'midtrans_transaction_id' => $id,
+            ]);
+
+            return ['status' => 'applied', 'reason' => $failureReason];
+        }
         if (in_array($status, self::UNSUCCESSFUL, true)) {
             return $this->reconcile($payment, 'attempt_unsuccessful', $verified);
         }
@@ -168,8 +204,20 @@ class MidtransWebhookService
             return $this->reconcile($payment, 'transaction_conflict', $verified, priority: $success);
         }
         if ($status === 'pending' && in_array($code, ['200', '201'], true)) {
-            if ($payment->status_pembayaran === 'Menunggu' && $payment->midtrans_status === null) {
-                $payment->update(['midtrans_status' => 'pending', 'midtrans_payment_type' => $type]);
+            if ($payment->status_pembayaran === 'Menunggu') {
+                $changes = [];
+                if ($payment->midtrans_status === null) {
+                    $changes = ['midtrans_status' => 'pending', 'midtrans_payment_type' => $type];
+                }
+                if ($type === 'dana' && $payment->midtrans_transaction_id === null) {
+                    if (Pembayaran::where('midtrans_transaction_id', $id)->whereKeyNot($payment->getKey())->exists()) {
+                        return $this->reconcile($payment, 'transaction_conflict', $verified);
+                    }
+                    $changes['midtrans_transaction_id'] = $id;
+                }
+                if ($changes !== []) {
+                    $payment->update($changes);
+                }
             }
 
             return ['status' => 'acknowledged', 'reason' => 'pending'];
@@ -206,7 +254,7 @@ class MidtransWebhookService
 
     public function inspectStoredTransaction(Pesanan $order, Pembayaran $payment, string $transactionId, array $response): string
     {
-        $verified = $this->transactionData($response);
+        $verified = $this->verifiedData($response);
         if ($verified === null) {
             return 'tidak_pasti';
         }

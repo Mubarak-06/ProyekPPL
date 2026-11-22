@@ -83,7 +83,6 @@ class MidtransWebhookServiceTest extends TestCase
             'pending' => ['pending', '201', 'qris', null, 'pending', 0],
             'deny' => ['deny', '202', 'qris', 'deny', 'attempt_unsuccessful', 1],
             'cancel' => ['cancel', '200', 'qris', null, 'attempt_unsuccessful', 1],
-            'expire' => ['expire', '202', 'qris', null, 'attempt_unsuccessful', 1],
             'failure' => ['failure', '407', 'qris', null, 'attempt_unsuccessful', 1],
             'refund' => ['refund', '200', 'qris', null, 'funds_reversed', 1],
             'partial refund' => ['partial_refund', '200', 'qris', null, 'funds_reversed', 1],
@@ -203,6 +202,29 @@ class MidtransWebhookServiceTest extends TestCase
         self::assertSame('prioritas_tinggi', DB::table('midtrans_rekonsiliasi')->value('status_penanganan'));
         self::assertSame('Menunggu', DB::table('pembayaran')->find(1)->status_pembayaran);
         self::assertSame('Ditolak', DB::table('pesanan')->find(1)->status_pesanan);
+        self::assertSame(8, DB::table('produk')->value('stok'));
+    }
+
+    public function test_gateway_timeout_can_be_retried_without_leaving_a_hold(): void
+    {
+        $payload = $this->payload();
+        $snap = $this->createMock(MidtransSnapService::class);
+        $snap->expects($this->exactly(2))->method('getTransactionStatus')->with('txn-1')
+            ->willReturnCallback(function () use ($payload) {
+                static $attempt = 0;
+                if (++$attempt === 1) {
+                    throw new RuntimeException('Timeout', 28);
+                }
+
+                return (object) $payload;
+            });
+        $service = new MidtransWebhookService($snap);
+
+        self::assertSame(['status' => 'unavailable', 'reason' => 'gateway_unavailable'], $service->process($payload));
+        self::assertSame('Menunggu', DB::table('pembayaran')->find(1)->status_pembayaran);
+        self::assertSame('applied', $service->process($payload)['status']);
+        self::assertSame('Berhasil', DB::table('pembayaran')->find(1)->status_pembayaran);
+        self::assertSame(0, DB::table('midtrans_rekonsiliasi')->count());
         self::assertSame(8, DB::table('produk')->value('stok'));
     }
 
@@ -329,6 +351,47 @@ class MidtransWebhookServiceTest extends TestCase
 
         self::assertSame($reason, $service->process($this->payload($notice + $fields))['reason']);
         self::assertSame($reason === 'payment_verified' ? 'Berhasil' : 'Menunggu', DB::table('pembayaran')->find(1)->status_pembayaran);
+        self::assertSame(8, DB::table('produk')->value('stok'));
+    }
+
+    public static function danaTerminalStatuses(): array
+    {
+        return [
+            'expired' => ['expire', '407', 'payment_expired'],
+            'canceled' => ['cancel', '200', 'payment_failed'],
+            'denied' => ['deny', '202', 'payment_failed'],
+        ];
+    }
+
+    #[DataProvider('danaTerminalStatuses')]
+    public function test_dana_refresh_validates_merchant_and_applies_terminal_status_once(string $status, string $code, string $reason): void
+    {
+        config(['services.midtrans.sandbox_merchant_id' => 'merchant-sandbox']);
+        DB::table('pembayaran')->where('id', 1)->update(['metode_pembayaran' => 'E-Wallet']);
+        $fields = ['payment_type' => 'dana', 'merchant_id' => 'merchant-sandbox'];
+        $pending = $this->payload(['transaction_status' => 'pending', 'status_code' => '201'] + $fields);
+        $expired = $this->payload(['transaction_status' => $status, 'status_code' => $code] + $fields);
+        $settled = $this->payload($fields);
+        $snap = $this->createMock(MidtransSnapService::class);
+        $snap->expects($this->exactly(5))->method('getTransactionStatus')->with('txn-1')
+            ->willReturnOnConsecutiveCalls((object) $pending, (object) (['merchant_id' => 'other'] + $expired),
+                (object) $expired, (object) $expired, (object) $settled);
+        $service = new MidtransWebhookService($snap);
+        $refresh = fn () => $service->refreshStatus(\App\Models\Pembayaran::findOrFail(1), 'txn-1');
+
+        self::assertSame('pending', $refresh()['reason']);
+        self::assertSame('unavailable', $refresh()['status']);
+        self::assertSame('Menunggu', DB::table('pembayaran')->find(1)->status_pembayaran);
+        self::assertSame(['status' => 'applied', 'reason' => $reason], $refresh());
+        $payment = DB::table('pembayaran')->find(1);
+        self::assertSame('Gagal', $payment->status_pembayaran);
+        self::assertSame($status, $payment->midtrans_status);
+        self::assertSame('txn-1', $payment->midtrans_transaction_id);
+        self::assertNull($payment->waktu_pembayaran);
+        self::assertSame(['status' => 'acknowledged', 'reason' => $reason], $refresh());
+        self::assertSame('success_conflicts_with_history', $refresh()['reason']);
+        self::assertEquals($payment, DB::table('pembayaran')->find(1));
+        self::assertSame('Menunggu', DB::table('pesanan')->find(1)->status_pesanan);
         self::assertSame(8, DB::table('produk')->value('stok'));
     }
 

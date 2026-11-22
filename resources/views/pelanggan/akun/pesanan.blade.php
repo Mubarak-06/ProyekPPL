@@ -24,7 +24,14 @@
                         <small>Pembayaran: {{ $item->pembayaran?->status_pembayaran ?? 'Belum tersedia' }}</small>
                         <small>Pengiriman: {{ $item->pengiriman?->status_pengiriman ?? 'Belum tersedia' }}</small>
                     </td>
-                    <td data-label="Aksi"><a class="tombol tombol-outline" href="{{ route('pelanggan.pesanan.show', $item->id) }}">Lihat Detail</a></td>
+                    <td data-label="Aksi">
+                        <div class="aksi-pesanan">
+                            <a class="tombol tombol-outline" href="{{ route('pelanggan.pesanan.show', $item->id) }}">Lihat Detail</a>
+                            @if(in_array($item->id, $pesananBisaDibayar, true))
+                                @include('pelanggan.partials.tombol-bayar-snap', ['order' => $item])
+                            @endif
+                        </div>
+                    </td>
                 </tr>
             @empty
                 <tr><td colspan="6" class="keadaan-kosong">Anda belum memiliki pesanan.</td></tr>

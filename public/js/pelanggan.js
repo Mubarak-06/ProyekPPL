@@ -114,12 +114,19 @@ async function mulaiPeriksaSnap(form) {
             const response = await fetch(form.action, {
                 method: 'POST', body: new FormData(form), headers: {Accept: 'application/json'},
             });
+            if (response.status === 429) continue;
             if (!response.ok) return;
             const hasil = await response.json();
+            if (hasil.redirect_url) {
+                window.location.assign(hasil.redirect_url);
+                return;
+            }
             if (hasil.status === 'applied' || hasil.status === 'needs_reconciliation' || hasil.reason === 'already_paid') {
                 window.location.reload();
                 return;
             }
+            const status = document.querySelector('[data-snap-status]');
+            if (status && hasil.message) status.textContent = hasil.message;
             if (hasil.status === 'transaction_id_required') return;
         }
     } catch {

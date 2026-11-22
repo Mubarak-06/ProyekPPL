@@ -35,6 +35,10 @@
     @endif
     <div class="aksi-form">
         <a class="tombol tombol-outline" href="{{ route('pelanggan.pesanan') }}">Kembali ke Pesanan Saya</a>
-        <a class="tombol" href="{{ route('pelanggan.pembayaran', $pesanan->id) }}">Instruksi Pembayaran</a>
+        @if($bisaDibayar)
+            @include('pelanggan.partials.tombol-bayar-snap', ['order' => $pesanan])
+        @elseif($pesanan->pembayaran && $pesanan->pembayaran->status_pembayaran !== 'Berhasil')
+            <a class="tombol" href="{{ route('pelanggan.pembayaran', $pesanan->id) }}">{{ $pesanan->pembayaran->gateway === 'midtrans' ? 'Lihat Status Pembayaran' : 'Instruksi Pembayaran' }}</a>
+        @endif
     </div>
 @endsection

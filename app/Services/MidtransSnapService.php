@@ -130,7 +130,7 @@ class MidtransSnapService
 
         $parameters = $this->buildTransactionParameters($pesanan, $pembayaran, $sandboxChannels);
         $parameters['callbacks']['finish'] = rtrim(config('app.url'), '/')
-            .route('pelanggan.pembayaran', $pesanan->id, false);
+            .route('pelanggan.pembayaran', ['id' => $pesanan->id, 'snap_return' => 1], false);
         if (in_array('dana', $parameters['enabled_payments'], true)) {
             $parameters['dana']['callback_url'] = $parameters['callbacks']['finish'];
         }
@@ -235,6 +235,10 @@ class MidtransSnapService
                 CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_TIMEOUT => 15,
             ];
+            $caBundle = $config['sandbox_ca_bundle'] ?? null;
+            if (is_string($caBundle) && $caBundle !== '') {
+                Config::$curlOptions[CURLOPT_CAINFO] = $caBundle;
+            }
 
             return $request();
         } catch (Throwable $exception) {

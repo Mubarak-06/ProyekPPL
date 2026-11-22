@@ -116,6 +116,7 @@ class MidtransPaymentCoordinatorTest extends TestCase
             'manual' => [7, 2, 'Menunggu', 'Menunggu'],
             'rejected order' => [7, 1, 'Ditolak', 'Menunggu'],
             'paid' => [7, 1, 'Menunggu', 'Berhasil'],
+            'failed' => [7, 1, 'Menunggu', 'Gagal'],
         ];
     }
 
@@ -151,6 +152,7 @@ class MidtransPaymentCoordinatorTest extends TestCase
 
         $result = ['status' => 'ready', 'token' => 'dummy-token', 'redirect_url' => 'https://example.test/snap'];
         self::assertSame($result, $coordinator->requestToken(7, 1));
+        Pembayaran::findOrFail(1)->update(['midtrans_status' => 'pending', 'midtrans_transaction_id' => 'pending-fixture']);
         self::assertSame($result, $coordinator->requestToken(7, 1));
 
         $payment = Pembayaran::findOrFail(1);

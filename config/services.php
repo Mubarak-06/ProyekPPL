@@ -30,8 +30,11 @@ return [
 
     'midtrans' => [
         'server_key' => env('MIDTRANS_SERVER_KEY'),
+        'signature_secret_key' => env('MIDTRANS_SIGNATURE_SECRET_KEY'),
+        'sandbox_merchant_id' => env('MIDTRANS_SANDBOX_MERCHANT_ID'),
         'client_key' => env('MIDTRANS_CLIENT_KEY'),
         'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
+        'sandbox_ca_bundle' => env('MIDTRANS_SANDBOX_CA_BUNDLE'),
         'snap_page_expiry_minutes' => 15,
         // Kandidat untuk diuji. Aktivasi juga memerlukan bukti Sandbox dan dukungan aplikasi.
         'sandbox_channels' => array_values(array_filter(array_map('trim', explode(',', (string) env('MIDTRANS_SANDBOX_CHANNELS', 'bca_va,bni_va,bri_va,echannel,dana,other_qris'))))),

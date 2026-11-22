@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Pembayaran extends Model
 {
@@ -45,5 +46,11 @@ class Pembayaran extends Model
     public function pesanan()
     {
         return $this->belongsTo(Pesanan::class, 'pesanan_id');
+    }
+
+    public function rekonsiliasiAktif(): HasMany
+    {
+        return $this->hasMany(MidtransRekonsiliasi::class, 'pembayaran_id')
+            ->where('status_penahanan', '<>', 'dilepas');
     }
 }

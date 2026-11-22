@@ -12,8 +12,12 @@
             <p role="status">Pembayaran perlu pemeriksaan.</p>
         @elseif($pesanan->pembayaran->status_pembayaran === 'Berhasil')
             <p role="status">Pembayaran berhasil dan sudah diverifikasi server.</p>
+        @elseif($pesanan->pembayaran->status_pembayaran === 'Gagal' && $pesanan->pembayaran->midtrans_status === 'expire')
+            <p role="status">Pembayaran telah kedaluwarsa.</p>
+        @elseif($pesanan->pembayaran->status_pembayaran === 'Gagal' && in_array($pesanan->pembayaran->midtrans_status, ['cancel', 'deny'], true))
+            <p role="status">Pembayaran gagal.</p>
         @elseif($pesanan->pembayaran->status_pembayaran === 'Menunggu')
-            <p role="status" data-snap-status>Menunggu pembayaran.</p>
+            <p role="status" data-snap-status>{{ $statusKembali ?? 'Menunggu pembayaran.' }}</p>
             @if($snapAvailable)
                 <form method="POST" action="{{ route('pelanggan.pembayaran.snap', $pesanan->id) }}" data-snap-payment @if(session('buka_snap_dana')) data-snap-autostart @endif>
                     @csrf
@@ -44,6 +48,7 @@
             </form>
         @endif
         <a href="{{ route('pelanggan.pembayaran', $pesanan->id) }}">Muat ulang status pembayaran</a>
+        <a href="{{ route('pelanggan.pesanan') }}">Kembali ke Pesanan Saya</a>
         <a href="{{ route('pelanggan.pesanan.show', $pesanan->id) }}">Detail pesanan</a>
     </section>
 @endsection

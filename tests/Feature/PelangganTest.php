@@ -133,31 +133,93 @@ class PelangganTest extends PelangganTestCase
             'order_id' => $order->kode_pesanan, 'transaction_id' => 'va-fixture', 'gross_amount' => '12500.00',
             'status_code' => '200', 'transaction_status' => 'settlement', 'payment_type' => 'bank_transfer',
         ];
-        $gateway->shouldReceive('getTransactionStatus')->once()->with('va-fixture')->andReturn((object) $notice);
+        $gateway->shouldReceive('getTransactionStatus')->twice()->with('va-fixture')->andReturn((object) $notice);
 
         $this->get('/pesanan/1/pembayaran')->assertOk()->assertSee('Menunggu pembayaran')
             ->assertSee('test-only-client')->assertDontSee('test-only-server');
+        $this->get('/pesanan')->assertOk()->assertSee('Bayar Sekarang')
+            ->assertSee('action="'.route('pelanggan.pembayaran.snap', 1).'"', false);
+        $this->get('/pesanan/1')->assertOk()->assertSee('Bayar Sekarang')
+            ->assertSee('action="'.route('pelanggan.pembayaran.snap', 1).'"', false);
+        $this->post('/pesanan/1/pembayaran/snap')->assertStatus(303)->assertRedirect($url);
         foreach (range(1, 2) as $unused) {
             $this->postJson('/pesanan/1/pembayaran/snap', ['status_pembayaran' => 'Berhasil'])
                 ->assertExactJson(['status' => 'ready', 'token' => 'fake-snap-token', 'redirect_url' => $url]);
         }
         $this->assertDatabaseHas('pembayaran', ['id' => 1, 'status_pembayaran' => 'Menunggu']);
         $this->actingAs(User::factory()->create())->postJson('/pesanan/1/pembayaran/snap')->assertNotFound();
+        $this->post('/pesanan/1/pembayaran/snap')->assertNotFound();
         $this->postJson('/pesanan/1/pembayaran/periksa')->assertNotFound();
+        $this->get('/pesanan/1/pembayaran?transaction_status=settlement')->assertNotFound();
+        $gateway->shouldReceive('getTransactionStatus')->once()->with($order->kode_pesanan)->andReturn(
+            (object) (['transaction_status' => 'pending', 'status_code' => '201'] + $notice),
+        );
+        $gateway->shouldReceive('getTransactionStatus')->once()->with($order->kode_pesanan)
+            ->andThrow(new \RuntimeException('Timeout', 28));
         $gateway->shouldReceive('getTransactionStatus')->once()->with($order->kode_pesanan)->andReturn((object) $notice);
+        $this->actingAs($data['user'])->get('/pesanan/1/pembayaran?transaction_status=settlement')
+            ->assertOk()->assertSee('Menunggu pembayaran')->assertDontSee('Pembayaran berhasil');
+        $this->postJson('/pesanan/1/pembayaran/periksa')->assertJsonPath('reason', 'pending')->assertJsonMissingPath('redirect_url');
+        $this->get('/pesanan/1')->assertOk()->assertSee('Lanjutkan Pembayaran')->assertDontSee('Bayar Sekarang');
+        $this->travel(1)->minutes();
+        $this->post('/pesanan/1/pembayaran/snap')->assertStatus(303)->assertRedirect($url);
+        $this->postJson('/pesanan/1/pembayaran/periksa')->assertJsonPath('status', 'unavailable')->assertJsonMissingPath('redirect_url');
         $this->actingAs($data['user'])->post('/pesanan/1/pembayaran/periksa', ['status_pembayaran' => 'Berhasil'])
-            ->assertRedirect('/pesanan/1/pembayaran')->assertSessionHas('status_midtrans', 'Pembayaran berhasil diverifikasi oleh Midtrans.');
+            ->assertRedirect('/pesanan');
+        $this->travel(1)->minutes();
+        $this->postJson('/pesanan/1/pembayaran/periksa')->assertOk()
+            ->assertJsonPath('reason', 'already_paid')->assertJsonPath('redirect_url', '/pesanan');
         $this->assertDatabaseHas('pembayaran', ['id' => 1, 'status_pembayaran' => 'Berhasil', 'midtrans_transaction_id' => 'va-fixture']);
         $notice['signature_key'] = hash('sha512', $notice['order_id'].'20012500.00test-only-server');
         $this->postJson('/api/webhooks/midtrans', $notice)->assertOk();
-        $this->actingAs($data['user'])->get('/pesanan/1/pembayaran')->assertSee('Pembayaran berhasil')
-            ->assertDontSee('fake-snap-token')->assertDontSee($url);
+        $this->actingAs($data['user'])->get('/pesanan/1/pembayaran')->assertRedirect('/pesanan');
+        $this->get('/pesanan')->assertOk()->assertSee($order->kode_pesanan)->assertSee('Pembayaran: Berhasil')
+            ->assertSee('Lihat Detail')->assertDontSee('Bayar Sekarang');
+        $this->get('/pesanan/1')->assertOk()->assertDontSee('Bayar Sekarang')->assertDontSee('Instruksi Pembayaran');
+        $this->postJson('/pesanan/1/pembayaran/snap')->assertExactJson(['status' => 'rejected']);
+        $this->post('/pesanan/1/pembayaran/snap')->assertStatus(303)->assertRedirect('/pesanan/1/pembayaran');
         $this->assertSame(8, $data['produk']->fresh()->stok);
+    }
+
+    public function test_snap_finish_verifies_before_redirect_and_keeps_unconfirmed_payments_waiting(): void
+    {
+        config(['services.midtrans.is_production' => false]);
+        $data = $this->dataBelanja();
+        $order = $this->legacyOrder($data);
+        $payment = $order->pembayaran()->sole();
+        $payment->update(['gateway' => 'midtrans', 'midtrans_order_id' => $order->kode_pesanan]);
+        $stock = $data['produk']->fresh()->stok;
+        $transaction = [
+            'order_id' => $order->kode_pesanan, 'transaction_id' => 'finish-va',
+            'gross_amount' => '12500.00', 'payment_type' => 'bank_transfer',
+        ];
+        $snap = $this->partialMock(MidtransSnapService::class);
+        $snap->shouldReceive('getTransactionStatus')->once()->with($order->kode_pesanan)
+            ->andReturn((object) (['transaction_status' => 'pending', 'status_code' => '201'] + $transaction));
+        $snap->shouldReceive('getTransactionStatus')->once()->with($order->kode_pesanan)
+            ->andThrow(new \RuntimeException('Timeout', 28));
+        $snap->shouldReceive('getTransactionStatus')->once()->with($order->kode_pesanan)
+            ->andReturn((object) (['transaction_status' => 'settlement', 'status_code' => '200'] + $transaction));
+        $callback = route('pelanggan.pembayaran', [
+            'id' => $order->id, 'order_id' => $order->kode_pesanan, 'transaction_status' => 'settlement',
+        ]);
+
+        $this->get($callback)->assertOk()->assertSee('Midtrans masih menunggu pembayaran.')
+            ->assertSee('Kembali ke Pesanan Saya')->assertDontSee('Pembayaran berhasil');
+        $this->assertSame('Menunggu', $payment->fresh()->status_pembayaran);
+        $this->postJson(route('pelanggan.pembayaran.periksa', $order->id))
+            ->assertJsonPath('status', 'unavailable')->assertJsonMissingPath('redirect_url');
+        $this->assertSame('Menunggu', $payment->fresh()->status_pembayaran);
+        $this->get($callback)->assertRedirect('/pesanan');
+        $this->get($callback)->assertRedirect('/pesanan');
+        $this->assertSame('Berhasil', $payment->fresh()->status_pembayaran);
+        $this->assertSame($stock, $data['produk']->fresh()->stok);
     }
 
     public function test_dana_uses_hosted_sandbox_when_popup_key_is_for_production(): void
     {
         config(['services.midtrans.client_key' => 'Mid-client-test-production', 'services.midtrans.sandbox_channels' => ['dana'],
+            'services.midtrans.sandbox_merchant_id' => 'test-merchant',
             'services.midtrans.sandbox_verified_channels' => ['dana']]);
         $data = $this->dataBelanja();
         $token = str_repeat('d', 40);
@@ -181,17 +243,33 @@ class PelangganTest extends PelangganTestCase
         $gateway->shouldReceive('getTransactionStatus')->once()->with('wrong-dana-id')->andReturn((object) [
             'order_id' => 'KA-OTHER-ORDER', 'transaction_id' => 'wrong-dana-id', 'gross_amount' => '11250.00',
             'status_code' => '200', 'transaction_status' => 'settlement', 'payment_type' => 'dana', 'currency' => 'IDR',
+            'merchant_id' => 'test-merchant',
         ]);
         $this->postJson('/pesanan/1/pembayaran/periksa', ['transaction_id' => 'wrong-dana-id'])
             ->assertJsonPath('status', 'unavailable');
         $this->assertDatabaseHas('pembayaran', ['pesanan_id' => 1, 'status_pembayaran' => 'Menunggu']);
-        $gateway->shouldReceive('getTransactionStatus')->once()->with('dana-test-id')->andReturn((object) [
+        $this->postJson('/pesanan/1/pembayaran/periksa')->assertJsonPath('status', 'transaction_id_required');
+
+        $verified = [
             'order_id' => $order->kode_pesanan, 'transaction_id' => 'dana-test-id', 'gross_amount' => '11250.00',
-            'status_code' => '200', 'transaction_status' => 'settlement', 'payment_type' => 'dana', 'currency' => 'IDR',
-        ]);
+            'status_code' => '200', 'payment_type' => 'dana', 'currency' => 'IDR', 'merchant_id' => 'test-merchant',
+        ];
+        $gateway->shouldReceive('getTransactionStatus')->twice()->with('dana-test-id')->andReturn(
+            (object) (['transaction_status' => 'PENDING'] + $verified),
+            (object) (['transaction_status' => 'settlement'] + $verified),
+        );
         $this->postJson('/pesanan/1/pembayaran/periksa', ['transaction_id' => 'dana-test-id'])
-            ->assertJsonPath('status', 'applied');
+            ->assertJsonPath('reason', 'pending');
+        $this->assertDatabaseHas('pembayaran', [
+            'pesanan_id' => 1, 'status_pembayaran' => 'Menunggu', 'midtrans_transaction_id' => 'dana-test-id',
+        ]);
+        $this->artisan('midtrans:sync-pending')->assertSuccessful();
+        $this->artisan('midtrans:sync-pending')->assertSuccessful();
         $this->assertDatabaseHas('pembayaran', ['pesanan_id' => 1, 'status_pembayaran' => 'Berhasil']);
+        $paymentId = $order->pembayaran()->sole()->id;
+        $this->getJson('/admin/pembayaran')->assertForbidden();
+        $this->actingAs($this->akunAdmin())->getJson('/admin/pembayaran')
+            ->assertOk()->assertJsonFragment(['id' => $paymentId, 'status_pembayaran' => 'Berhasil']);
         $this->assertSame(9, $data['produk']->fresh()->stok);
     }
 
