@@ -223,31 +223,11 @@
             border-color: #008A50;
         }
 
-        .mp-upload {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 6px;
-            padding: 22px;
-            border: 1px dashed #CBD5E1;
-            border-radius: 8px;
-            cursor: pointer;
+        .mp-file-hint {
+            display: block;
+            margin-top: 6px;
             color: #64748B;
-            text-align: center;
-        }
-
-        .mp-upload i {
-            font-size: 20px;
-        }
-
-        .mp-upload span {
             font-size: 11px;
-            font-weight: 500;
-        }
-
-        .mp-upload small {
-            font-size: 10px;
         }
 
         .mp-form-footer {
@@ -302,9 +282,9 @@
     @if(session('success'))
         <div
             style="padding:12px 16px; margin-bottom:16px;
-                                                                                                                                        background:#DCFCE7; color:#15803D;
-                                                                                                                                        border:1px solid #BBF7D0; border-radius:6px;
-                                                                                                                                        font-size:12px;">
+                                                                                                                                                                background:#DCFCE7; color:#15803D;
+                                                                                                                                                                border:1px solid #BBF7D0; border-radius:6px;
+                                                                                                                                                                font-size:12px;">
             <i class="bi bi-check-circle"></i>
             {{ session('success') }}
         </div>
@@ -312,9 +292,9 @@
 
     @if(session('error'))
         <div style="padding:12px 16px; margin-bottom:16px;
-                        background:#FEE2E2; color:#DC2626;
-                        border:1px solid #FECACA; border-radius:6px;
-                        font-size:12px;">
+                                                background:#FEE2E2; color:#DC2626;
+                                                border:1px solid #FECACA; border-radius:6px;
+                                                font-size:12px;">
 
             <i class="bi bi-exclamation-circle"></i>
             {{ session('error') }}
@@ -325,9 +305,9 @@
     @if($errors->any())
         <div
             style="padding:12px 16px; margin-bottom:16px;
-                                                                                                                                        background:#FEE2E2; color:#DC2626;
-                                                                                                                                        border:1px solid #FECACA; border-radius:6px;
-                                                                                                                                        font-size:12px;">
+                                                                                                                                                                background:#FEE2E2; color:#DC2626;
+                                                                                                                                                                border:1px solid #FECACA; border-radius:6px;
+                                                                                                                                                                font-size:12px;">
             <strong>Data belum berhasil disimpan:</strong>
             <ul style="margin:8px 0 0; padding-left:20px;">
                 @foreach($errors->all() as $error)
@@ -340,7 +320,7 @@
     <div class="mp-header">
         <div>
             <h1 class="mp-title">Metode Pembayaran</h1>
-            
+
             <div class="mp-breadcrumb">
                 <a href="{{ route('admin.dashboard') }}">Dashboard</a>
                 &nbsp; › &nbsp;
@@ -556,13 +536,12 @@
                         Logo Bank / Penyedia
                     </label>
 
-                    <label for="logoMetode" class="mp-upload">
-                        <i class="bi bi-cloud-arrow-up"></i>
-                        <span>Upload Logo Bank</span>
-                        <small>Format PNG, JPG (Maks. 2MB)</small>
-                    </label>
+                    <input type="file" id="logoMetode" name="logo" accept=".png,.jpg,.jpeg" class="mp-input">
 
-                    <input type="file" id="logoMetode" name="logo" accept=".png,.jpg,.jpeg" style="display:none;">
+                    <small class="mp-file-hint">
+                        Format PNG, JPG (Maks. 2MB)
+                    </small>
+
                     @if($modeEdit && $metode->logo)
                         <p style="font-size:11px; color:#777; margin-top:6px;">
                             Logo saat ini:
@@ -578,13 +557,12 @@
                         Gambar Kode QRIS <span class="mp-required">*</span>
                     </label>
 
-                    <label for="gambarQRIS" class="mp-upload">
-                        <i class="bi bi-qr-code"></i>
-                        <span>Upload Gambar QRIS</span>
-                        <small>Format PNG, JPG (Maks. 2MB)</small>
-                    </label>
+                    <input type="file" id="gambarQRIS" name="gambar_qris" accept=".png,.jpg,.jpeg" class="mp-input">
 
-                    <input type="file" id="gambarQRIS" name="gambar_qris" accept=".png,.jpg,.jpeg" style="display:none;">
+                    <small class="mp-file-hint">
+                        Format PNG, JPG (Maks. 2MB)
+                    </small>
+
                     @if($modeEdit && $metode->jenis_metode === 'qris' && $metode->gambar_qris)
                         <p style="font-size:11px; color:#777; margin-top:6px;">
                             Gambar QRIS saat ini:

@@ -232,12 +232,6 @@
             </div>
 
             <div class="kirim-detail-row">
-                <span class="kirim-detail-label">Kode Pengiriman</span>
-                <span>:</span>
-                <span class="kirim-detail-value">-</span>
-            </div>
-
-            <div class="kirim-detail-row">
                 <span class="kirim-detail-label">Tanggal Pengiriman</span>
                 <span>:</span>
                 <span class="kirim-detail-value">
@@ -264,12 +258,6 @@
                 <span class="kirim-detail-value">
                     Rp{{ number_format($pengiriman->ongkos_kirim, 0, ',', '.') }}
                 </span>
-            </div>
-
-            <div class="kirim-detail-row">
-                <span class="kirim-detail-label">Estimasi Sampai</span>
-                <span>:</span>
-                <span class="kirim-detail-value">-</span>
             </div>
 
             <div class="kirim-detail-row">
