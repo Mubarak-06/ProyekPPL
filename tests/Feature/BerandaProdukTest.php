@@ -79,7 +79,9 @@ class BerandaProdukTest extends PelangganTestCase
             $katalog->assertSee($item->nama_produk);
             $this->post('/keranjang/'.$item->id, ['jumlah' => 1])->assertSessionHas('keranjang.'.$item->id, 1);
         }
-        $this->post('/keranjang/'.$produk->first()->id, ['jumlah' => 1, 'beli' => 1])->assertRedirect('/checkout');
+        $this->post('/keranjang/'.$produk->first()->id, ['jumlah' => 1, 'beli' => 1])
+            ->assertRedirectContains('/checkout?langsung=')
+            ->assertSessionHas('keranjang.'.$produk->first()->id, 1);
         $this->actingAs($this->akunAdmin());
         $admin = $this->get('/admin/produk')->assertOk();
         foreach ($produk as $item) {

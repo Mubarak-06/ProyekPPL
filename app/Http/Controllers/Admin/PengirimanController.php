@@ -586,8 +586,7 @@ class PengirimanController extends Controller
             ],
             'biaya_ongkir' => [
                 'required',
-                'numeric',
-                'min:0',
+                'regex:/\A[0-9]{1,10}(?:\.0{1,2})?\z/',
             ],
         ]);
 
@@ -647,8 +646,7 @@ class PengirimanController extends Controller
             ],
             'biaya_ongkir' => [
                 'required',
-                'integer',
-                'min:0',
+                'regex:/\A[0-9]{1,10}(?:\.0{1,2})?\z/',
             ],
         ]);
 

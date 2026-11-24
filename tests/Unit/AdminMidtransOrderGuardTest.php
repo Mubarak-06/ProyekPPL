@@ -55,7 +55,7 @@ class AdminMidtransOrderGuardTest extends TestCase
         foreach ([
             'CREATE TABLE pesanan (id INTEGER PRIMARY KEY, status_pesanan TEXT, updated_at TEXT)',
             'CREATE TABLE pembayaran (id INTEGER PRIMARY KEY, pesanan_id INTEGER, gateway TEXT, status_pembayaran TEXT, snap_requested_at TEXT, snap_token TEXT, snap_redirect_url TEXT, snap_token_expires_at TEXT, midtrans_transaction_id TEXT, midtrans_status TEXT, midtrans_payment_type TEXT, waktu_pembayaran TEXT)',
-            'CREATE TABLE pengiriman (pesanan_id INTEGER, status_pengiriman TEXT, waktu_dikirim TEXT)',
+            'CREATE TABLE pengiriman (pesanan_id INTEGER, status_pengiriman TEXT, waktu_dikirim TEXT, waktu_selesai TEXT, updated_at TEXT)',
             'CREATE TABLE produk (id INTEGER PRIMARY KEY, stok INTEGER, updated_at TEXT)',
             'CREATE TABLE detail_pesanan (pesanan_id INTEGER, produk_id INTEGER, jumlah INTEGER)',
             "CREATE TABLE midtrans_rekonsiliasi (id INTEGER PRIMARY KEY, pembayaran_id INTEGER, status_penanganan TEXT NOT NULL, status_transaksi TEXT, midtrans_transaction_id TEXT, catatan_manual TEXT, status_penahanan TEXT NOT NULL DEFAULT 'ditahan')",
@@ -131,19 +131,65 @@ class AdminMidtransOrderGuardTest extends TestCase
         ]);
         self::assertTrue($controller->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->has('success'));
         $this->assertState('Diproses', 8);
+        self::assertTrue($controller->updateStatus($this->statusRequest('Dikirim'), 1)->getSession()->has('success'));
+        self::assertStringContainsString('penerimaan barang', $controller->updateStatus($this->statusRequest('Selesai'), 1)->getSession()->get('error'));
+        $this->assertState('Dikirim', 8);
     }
 
-    public function test_manual_payment_preserves_processing_and_rejection(): void
+    public function test_manual_payment_is_preserved_when_processing_is_denied(): void
     {
         $db = $this->database->getConnection();
         $db->table('pembayaran')->update(['gateway' => 'manual']);
         $before = $db->table('pembayaran')->first();
         $controller = new PesananController;
-        self::assertTrue($controller->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->has('success'));
-        $this->assertState('Diproses', 8);
+        self::assertStringContainsString('pembayaran historis', $controller->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->get('error'));
+        $this->assertState('Menunggu', 8);
+        self::assertEquals($before, $db->table('pembayaran')->first());
         self::assertTrue($controller->tolak(1)->getSession()->has('success'));
         $this->assertState('Ditolak', 10);
         self::assertEquals($before, $db->table('pembayaran')->first());
+    }
+
+    public function test_missing_shipment_blocks_status_change_and_stock_restoration(): void
+    {
+        $db = $this->database->getConnection();
+        $db->table('pengiriman')->delete();
+        $controller = new PesananController;
+        self::assertStringContainsString('catatan pengiriman', $controller->tolak(1)->getSession()->get('error'));
+        $db->table('pembayaran')->update([
+            'status_pembayaran' => 'Berhasil', 'midtrans_transaction_id' => 'paid-txn', 'midtrans_status' => 'settlement',
+        ]);
+        self::assertStringContainsString('Catatan pengiriman', $controller->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->get('error'));
+        self::assertSame('Menunggu', $db->table('pesanan')->value('status_pesanan'));
+        self::assertSame(8, $db->table('produk')->value('stok'));
+    }
+
+    public static function unverifiedShippingPayments(): array
+    {
+        return [
+            'pending' => ['Menunggu'],
+            'failed' => ['Gagal'],
+            'missing' => [null],
+        ];
+    }
+
+    #[DataProvider('unverifiedShippingPayments')]
+    public function test_shipping_and_completion_require_verified_payment(?string $paymentStatus): void
+    {
+        $db = $this->database->getConnection();
+        if ($paymentStatus === null) {
+            $db->table('pembayaran')->delete();
+        } else {
+            $db->table('pembayaran')->update(['status_pembayaran' => $paymentStatus]);
+        }
+
+        $controller = new PesananController;
+        foreach (['Diproses' => 'Dikirim', 'Dikirim' => 'Selesai'] as $current => $target) {
+            $db->table('pesanan')->update(['status_pesanan' => $current]);
+            $db->table('pengiriman')->update(['status_pengiriman' => $current]);
+            self::assertTrue($controller->updateStatus($this->statusRequest($target), 1)->getSession()->has('error'));
+            $this->assertState($current, 8);
+        }
     }
 
     public static function blockingReconciliations(): array

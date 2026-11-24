@@ -293,9 +293,9 @@
 
             @if($pembayaran->bukti_pembayaran)
 
-                <a href="{{ asset('storage/' . $pembayaran->bukti_pembayaran) }}" target="_blank" rel="noopener noreferrer">
+                <a href="{{ route('admin.pembayaran.bukti', $pembayaran->id) }}" target="_blank" rel="noopener noreferrer">
 
-                    <img src="{{ asset('storage/' . $pembayaran->bukti_pembayaran) }}" alt="Bukti Pembayaran" class="pd-proof">
+                    <img src="{{ route('admin.pembayaran.bukti', $pembayaran->id) }}" alt="Bukti Pembayaran" class="pd-proof">
                 </a>
 
                 <p class="pd-empty" style="margin-top:10px;">

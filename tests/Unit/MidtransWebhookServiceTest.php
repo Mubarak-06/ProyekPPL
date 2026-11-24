@@ -36,13 +36,17 @@ class MidtransWebhookServiceTest extends TestCase
         Facade::setFacadeApplication($app);
 
         foreach ([
-            'CREATE TABLE pesanan (id INTEGER PRIMARY KEY, status_pesanan TEXT, total_pembayaran NUMERIC)',
+            'CREATE TABLE pesanan (id INTEGER PRIMARY KEY, status_pesanan TEXT, total_pembayaran NUMERIC, updated_at TEXT)',
             'CREATE TABLE pembayaran (id INTEGER PRIMARY KEY, pesanan_id INTEGER, gateway TEXT, metode_pembayaran TEXT, jumlah_pembayaran NUMERIC, status_pembayaran TEXT, waktu_pembayaran TEXT, midtrans_order_id TEXT UNIQUE, midtrans_transaction_id TEXT UNIQUE, midtrans_status TEXT, midtrans_payment_type TEXT, updated_at TEXT)',
             'CREATE TABLE midtrans_rekonsiliasi (id INTEGER PRIMARY KEY, pembayaran_id INTEGER, midtrans_order_id TEXT, midtrans_transaction_id TEXT, status_transaksi TEXT, jenis_pembayaran TEXT, status_penanganan TEXT, catatan_manual TEXT, terakhir_diperiksa_at TEXT, periksa_ulang_at TEXT, pembatalan_dikonfirmasi_at TEXT, created_at TEXT, updated_at TEXT)',
-            'CREATE TABLE produk (id INTEGER PRIMARY KEY, stok INTEGER)',
-            "INSERT INTO pesanan VALUES (1,'Menunggu',15000),(2,'Menunggu',15000)",
+            'CREATE TABLE produk (id INTEGER PRIMARY KEY, stok INTEGER, updated_at TEXT)',
+            'CREATE TABLE detail_pesanan (pesanan_id INTEGER, produk_id INTEGER, jumlah INTEGER)',
+            'CREATE TABLE pengiriman (pesanan_id INTEGER, status_pengiriman TEXT, updated_at TEXT)',
+            "INSERT INTO pesanan (id,status_pesanan,total_pembayaran) VALUES (1,'Menunggu',15000),(2,'Menunggu',15000)",
             "INSERT INTO pembayaran (id,pesanan_id,gateway,metode_pembayaran,jumlah_pembayaran,status_pembayaran,midtrans_order_id) VALUES (1,1,'midtrans','QRIS',15000,'Menunggu','KA-1'),(2,2,'manual','QRIS',15000,'Menunggu','KA-MANUAL')",
-            'INSERT INTO produk VALUES (1,8)',
+            'INSERT INTO produk (id,stok) VALUES (1,8)',
+            'INSERT INTO detail_pesanan VALUES (1,1,2)',
+            "INSERT INTO pengiriman (pesanan_id,status_pengiriman) VALUES (1,'Menunggu')",
         ] as $sql) {
             DB::statement($sql);
         }
@@ -382,6 +386,8 @@ class MidtransWebhookServiceTest extends TestCase
         self::assertSame('pending', $refresh()['reason']);
         self::assertSame('unavailable', $refresh()['status']);
         self::assertSame('Menunggu', DB::table('pembayaran')->find(1)->status_pembayaran);
+        self::assertSame(8, DB::table('produk')->value('stok'));
+        DB::table('produk')->where('id', 1)->update(['stok' => 14]);
         self::assertSame(['status' => 'applied', 'reason' => $reason], $refresh());
         $payment = DB::table('pembayaran')->find(1);
         self::assertSame('Gagal', $payment->status_pembayaran);
@@ -389,8 +395,31 @@ class MidtransWebhookServiceTest extends TestCase
         self::assertSame('txn-1', $payment->midtrans_transaction_id);
         self::assertNull($payment->waktu_pembayaran);
         self::assertSame(['status' => 'acknowledged', 'reason' => $reason], $refresh());
-        self::assertSame('success_conflicts_with_history', $refresh()['reason']);
+        self::assertSame('paid_after_rejection', $refresh()['reason']);
         self::assertEquals($payment, DB::table('pembayaran')->find(1));
+        self::assertSame('Ditolak', DB::table('pesanan')->find(1)->status_pesanan);
+        self::assertSame('Ditolak', DB::table('pengiriman')->value('status_pengiriman'));
+        self::assertSame(16, DB::table('produk')->value('stok'));
+        self::assertSame('prioritas_tinggi', DB::table('midtrans_rekonsiliasi')->where('catatan_manual', 'paid_after_rejection')->value('status_penanganan'));
+    }
+
+    public function test_verified_expiry_with_active_reconciliation_keeps_stock_reserved(): void
+    {
+        $expired = $this->payload(['transaction_status' => 'expire', 'status_code' => '407']);
+        $snap = $this->createMock(MidtransSnapService::class);
+        $snap->expects($this->exactly(2))->method('getTransactionStatus')
+            ->willReturnCallback(function () use ($expired) {
+                static $calls = 0;
+                if (++$calls === 1) {
+                    throw new RuntimeException('Tidak ditemukan', 404);
+                }
+
+                return (object) $expired;
+            });
+        $service = new MidtransWebhookService($snap);
+        self::assertSame('verification_unavailable', $service->process($expired)['reason']);
+        self::assertSame('terminal_payment_held', $service->process($expired)['reason']);
+        self::assertSame('Menunggu', DB::table('pembayaran')->find(1)->status_pembayaran);
         self::assertSame('Menunggu', DB::table('pesanan')->find(1)->status_pesanan);
         self::assertSame(8, DB::table('produk')->value('stok'));
     }

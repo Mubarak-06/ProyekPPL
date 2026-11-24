@@ -76,11 +76,10 @@ class PelangganLanjutanTest extends PelangganTestCase
         $lain->kode_barang = 'UJI-002';
         $lain->nama_produk = 'Produk yang tidak dipilih';
         $lain->save();
-        $token = str_repeat('s', 40);
-        $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 2, $lain->id => 3], 'checkout_token' => $token]);
+        $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 2, $lain->id => 3]]);
         $this->post('/keranjang/pilihan', ['pilihan' => [$data['produk']->id]])->assertSessionHas('keranjang_pilihan', [$data['produk']->id]);
         $this->get('/checkout')->assertOk()->assertDontSee($lain->nama_produk);
-        $this->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token])->assertSessionHasNoErrors()
+        $this->post('/checkout', $this->formCheckout())->assertSessionHasNoErrors()
             ->assertSessionHas('keranjang.'.$lain->id, 3)->assertSessionMissing('keranjang.'.$data['produk']->id);
         $this->assertDatabaseCount('detail_pesanan', 1);
         $this->assertSame(10, $lain->fresh()->stok);
@@ -104,10 +103,8 @@ class PelangganLanjutanTest extends PelangganTestCase
         $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 1]])
             ->put('/keranjang/'.$data['produk']->id, ['jumlah' => '3'])->assertSessionHas('keranjang.'.$data['produk']->id, 3);
         $this->get('/checkout')->assertOk()->assertSessionHasNoErrors();
-        $token = str_repeat('j', 40);
-        $this->withSession(['keranjang' => [$data['produk']->id => '2'], 'checkout_token' => $token])
-            ->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token])
-            ->assertSessionHasNoErrors();
+        $this->withSession(['keranjang' => [$data['produk']->id => '2']]);
+        $this->post('/checkout', $this->formCheckout())->assertSessionHasNoErrors();
         $this->assertDatabaseHas('detail_pesanan', ['jumlah' => 2]);
         $this->assertSame(8, $data['produk']->fresh()->stok);
     }
@@ -116,10 +113,9 @@ class PelangganLanjutanTest extends PelangganTestCase
     {
         $data = $this->dataBelanja();
         config(['services.midtrans.sandbox_channels' => []]);
-        $token = str_repeat('q', 40);
-        $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 1], 'checkout_token' => $token]);
+        $this->actingAs($data['user'])->withSession(['keranjang' => [$data['produk']->id => 1]]);
         $this->get('/checkout')->assertOk()->assertSee('Kanal pembayaran Midtrans belum tersedia.');
-        $this->post('/checkout', ['alamat_id' => $data['alamat'], 'metode_pembayaran' => 'Transfer Bank', 'checkout_token' => $token])
+        $this->post('/checkout', $this->formCheckout())
             ->assertSessionHasErrors('checkout');
         $this->assertDatabaseCount('pesanan', 0);
         $this->assertSame(10, $data['produk']->fresh()->stok);

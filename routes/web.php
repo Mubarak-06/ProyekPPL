@@ -236,6 +236,8 @@ Route::delete('/admin/pembayaran/metode/{id}', [PembayaranController::class, 'de
 
 Route::get('/admin/pembayaran/{id}', [PembayaranController::class, 'show'])
     ->name('admin.pembayaran.show');
+Route::get('/admin/pembayaran/{id}/bukti', [\App\Http\Controllers\Pelanggan\AkunController::class, 'lihatBuktiAdmin'])
+    ->whereNumber('id')->name('admin.pembayaran.bukti');
 
 Route::post('/admin/pembayaran/metode', [PembayaranController::class, 'storeMetode'])
     ->name('admin.pembayaran.metode.store');

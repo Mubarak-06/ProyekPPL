@@ -32,8 +32,9 @@
                     <input id="pencarian" name="q" type="search" value="{{ request()->routeIs('pelanggan.produk') && is_string(request('q')) ? request('q') : '' }}" placeholder="Cari produk (misal: Baut M10, Mur, Ring...)" maxlength="150">
                 </form>
                 <div class="menu-akun">
-                    <a class="ikon-keranjang" href="{{ route('pelanggan.keranjang') }}" aria-label="Keranjang ({{ array_sum(session('keranjang', [])) }})">
-                        <i class="bi bi-cart3" aria-hidden="true"></i><span>{{ array_sum(session('keranjang', [])) }}</span>
+                    @php($jumlahItemKeranjang = count(session('keranjang', [])))
+                    <a class="ikon-keranjang" href="{{ route('pelanggan.keranjang') }}" aria-label="Keranjang ({{ $jumlahItemKeranjang }})">
+                        <i class="bi bi-cart3" aria-hidden="true"></i><span>{{ $jumlahItemKeranjang }}</span>
                     </a>
                     @auth
                         <details class="dropdown-akun">

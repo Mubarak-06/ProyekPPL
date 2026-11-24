@@ -78,7 +78,7 @@ class MidtransWebhookService
         }
         $identifier = $payment->midtrans_transaction_id ?? $transactionId;
         if ($identifier === null && $payment->metode_pembayaran === 'E-Wallet') {
-            return ['status' => 'transaction_id_required'];
+            return $this->tinjauSesiTanpaIdentitas($payment);
         }
         try {
             $verified = $this->verifiedData((array) $this->snap->getTransactionStatus($identifier ?? $orderId));
@@ -91,6 +91,29 @@ class MidtransWebhookService
         }
 
         return $this->applyVerification($payment, $verified, $verified);
+    }
+
+    private function tinjauSesiTanpaIdentitas(Pembayaran $payment): array
+    {
+        $butuhIdentitas = ['status' => 'transaction_id_required'];
+        if (! $payment->snap_token_expires_at?->isPast()) {
+            return $butuhIdentitas;
+        }
+
+        return DB::transaction(function () use ($payment, $butuhIdentitas) {
+            $order = Pesanan::whereKey($payment->pesanan_id)->lockForUpdate()->first();
+            $payments = $order?->pembayaran()->orderBy('id')->limit(2)->lockForUpdate()->get();
+            $current = $payments?->first();
+            if ($order?->status_pesanan !== 'Menunggu' || $payments->count() !== 1
+                || $current->getKey() !== $payment->getKey() || ! $this->matchesOrder($current, $payment->midtrans_order_id)
+                || $current->status_pembayaran !== 'Menunggu' || $current->waktu_pembayaran !== null
+                || $current->midtrans_transaction_id !== null || $current->metode_pembayaran !== 'E-Wallet'
+                || $current->getRawOriginal('snap_token') === null || ! $current->snap_token_expires_at?->isPast()) {
+                return $butuhIdentitas;
+            }
+
+            return $this->reconcile($current, 'expired_snap_missing_identity', source: 'status_check');
+        }, 3);
     }
 
     private function verifiedData(array $response): ?array
@@ -144,7 +167,7 @@ class MidtransWebhookService
             }
 
             return $this->applyVerifiedStatus($order, $current, $verified);
-        });
+        }, 3);
     }
 
     private function applyVerifiedStatus(Pesanan $order, Pembayaran $payment, array $verified): array
@@ -183,6 +206,12 @@ class MidtransWebhookService
             && ($payment->midtrans_transaction_id === null || $payment->midtrans_transaction_id === $id)) {
             if (Pembayaran::where('midtrans_transaction_id', $id)->whereKeyNot($payment->getKey())->exists()) {
                 return $this->reconcile($payment, 'transaction_conflict', $verified);
+            }
+            if ($payment->rekonsiliasiAktif()->exists()) {
+                return $this->reconcile($payment, 'terminal_payment_held', $verified);
+            }
+            if ($order->status_pesanan !== 'Menunggu' || ! $order->batalkanDanKembalikanStok()) {
+                return $this->reconcile($payment, 'terminal_order_inconsistent', $verified);
             }
 
             $payment->update([
@@ -335,7 +364,7 @@ class MidtransWebhookService
         return $payment->gateway === 'midtrans' && $payment->midtrans_order_id === $orderId;
     }
 
-    private function reconcile(Pembayaran $payment, string $reason, array $verified = [], bool $priority = false, ?string $observedId = null): array
+    private function reconcile(Pembayaran $payment, string $reason, array $verified = [], bool $priority = false, ?string $observedId = null, string $source = 'webhook'): array
     {
         $status = $verified['transaction_status'] ?? null;
         if (! in_array($status, ['pending', 'capture', 'settlement', ...self::REVERSALS, ...self::UNSUCCESSFUL], true)) {
@@ -359,7 +388,7 @@ class MidtransWebhookService
                 'terakhir_diperiksa_at' => now(),
                 'periksa_ulang_at' => now(),
             ]);
-        (new MidtransReconciliationAudit)->recordSystemCase($case, 'webhook', $verified !== []);
+        (new MidtransReconciliationAudit)->recordSystemCase($case, $source, $verified !== []);
 
         return ['status' => 'needs_reconciliation', 'reason' => $reason];
     }

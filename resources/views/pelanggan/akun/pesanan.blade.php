@@ -20,9 +20,13 @@
                     <td data-label="Produk">@foreach($item->detailPesanan as $detail)<p>{{ $detail->nama_produk }} × {{ $detail->jumlah }}</p>@endforeach</td>
                     <td data-label="Total"><strong>Rp {{ number_format($item->total_pembayaran, 0, ',', '.') }}</strong></td>
                     <td data-label="Status">
-                        <span class="badge-status status-{{ strtolower($item->status_pesanan) }}">{{ $item->status_pesanan }}</span>
+                        <span class="badge-status status-{{ strtolower($item->status_pesanan) }}">{{ $item->status_pesanan === 'Ditolak' ? 'Dibatalkan' : $item->status_pesanan }}</span>
                         <small>Pembayaran: {{ $item->pembayaran?->status_pembayaran ?? 'Belum tersedia' }}</small>
-                        <small>Pengiriman: {{ $item->pengiriman?->status_pengiriman ?? 'Belum tersedia' }}</small>
+                        <small>Pengiriman: {{ $item->pengiriman?->status_pengiriman === 'Ditolak' ? 'Dibatalkan' : ($item->pengiriman?->status_pengiriman ?? 'Belum tersedia') }}</small>
+                        @if($item->alasanPembatalan())<small>{{ $item->alasanPembatalan() }}</small>@endif
+                        @if($item->pembayaran?->rekonsiliasiAktif->contains(fn ($kasus) => $kasus->menahanPemenuhan($item->pembayaran)))
+                            <small>Pembayaran sedang diperiksa.</small>
+                        @endif
                     </td>
                     <td data-label="Aksi">
                         <div class="aksi-pesanan">

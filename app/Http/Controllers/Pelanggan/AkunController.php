@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pelanggan;
 use App\Http\Controllers\Controller;
 use App\Models\Alamat;
 use App\Models\MidtransRekonsiliasi;
+use App\Models\Pembayaran;
 use App\Models\Pesanan;
 use App\Services\MidtransPaymentCoordinator;
 use App\Services\MidtransSnapService;
@@ -108,6 +109,12 @@ class AkunController extends Controller
         $alamat->user_id = $request->user()->id;
         $alamat->save();
 
+        $langsung = $request->query('langsung');
+        if ($langsung !== null && $langsung === $request->session()->get('checkout_langsung.token')) {
+            return redirect()->route('pelanggan.checkout', ['langsung' => $langsung, 'alamat_id' => $alamat->id])
+                ->with('success', 'Alamat berhasil disimpan.');
+        }
+
         return redirect()->route('pelanggan.alamat')->with('success', 'Alamat berhasil disimpan.');
     }
 
@@ -167,7 +174,8 @@ class AkunController extends Controller
                 ));
                 if ($result !== false) {
                     $statusKembali = $this->pesanStatusSnap($result);
-                    $payment->refresh();
+                    $pesanan->refresh();
+                    $payment = $pesanan->pembayaran;
                     $perluPemeriksaan = $payment->rekonsiliasiAktif
                         ->contains(fn (MidtransRekonsiliasi $case) => $case->menahanPemenuhan($payment));
                 }
@@ -295,7 +303,7 @@ class AkunController extends Controller
                     && in_array($pesanan->status_pesanan, ['Menunggu', 'Diproses'], true)
                     && $pembayaran->status_pembayaran === 'Menunggu'
                     && ! $pembayaran->bukti_pembayaran, 422, 'Bukti pembayaran tidak dapat diunggah untuk pesanan ini.');
-                $path = $request->file('bukti')->store('bukti-pembayaran', 'public');
+                $path = $request->file('bukti')->store('bukti-pembayaran-privat', 'local');
                 if (! $path) {
                     throw ValidationException::withMessages(['bukti' => 'Bukti pembayaran gagal disimpan. Silakan coba kembali.']);
                 }
@@ -303,11 +311,43 @@ class AkunController extends Controller
             });
         } catch (\Throwable $e) {
             if ($path) {
-                Storage::disk('public')->delete($path);
+                Storage::disk('local')->delete($path);
             }
             throw $e;
         }
 
         return back()->with('success', 'Bukti pembayaran berhasil diunggah. Menunggu pemeriksaan admin.');
+    }
+
+    public function lihatBukti(Request $request, int $id)
+    {
+        $pesanan = Pesanan::where('user_id', $request->user()->id)->with('pembayaran')->findOrFail($id);
+
+        return $this->responsBukti($pesanan->pembayaran?->bukti_pembayaran);
+    }
+
+    public function lihatBuktiAdmin(Request $request, int $id)
+    {
+        abort_unless($request->user()?->is_admin === true, 403);
+
+        return $this->responsBukti(Pembayaran::findOrFail($id)->bukti_pembayaran);
+    }
+
+    private function responsBukti(?string $path)
+    {
+        abort_unless(is_string($path) && preg_match(
+            '~\A(bukti-pembayaran(?:-privat)?)/[a-zA-Z0-9_-][a-zA-Z0-9_. -]*\.((?i:jpe?g|png))\z~',
+            $path,
+            $matches
+        ), 404);
+
+        $disk = Storage::disk($matches[1] === 'bukti-pembayaran-privat' ? 'local' : 'public');
+        abort_unless($disk->exists($path), 404);
+
+        return $disk->response($path, null, [
+            'Content-Type' => strtolower($matches[2]) === 'png' ? 'image/png' : 'image/jpeg',
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 }

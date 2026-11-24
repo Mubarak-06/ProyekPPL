@@ -38,7 +38,7 @@
         @endif
         @if($pesanan->pembayaran?->bukti_pembayaran)
             <h3>Bukti Pembayaran</h3>
-            <div class="bukti-pembayaran">@include('pelanggan.partials.gambar', ['path' => $pesanan->pembayaran->bukti_pembayaran, 'nama' => 'Bukti pembayaran'])</div>
+            <div class="bukti-pembayaran"><img src="{{ route('pelanggan.pesanan.bukti.show', $pesanan->id) }}" alt="Bukti pembayaran" loading="lazy"></div>
             <p>Bukti sudah diterima. Status pembayaran mengikuti hasil pemeriksaan admin.</p>
         @elseif($pesanan->pembayaran?->status_pembayaran === 'Menunggu' && in_array($pesanan->status_pesanan, ['Menunggu', 'Diproses']))
             <form action="{{ route('pelanggan.pesanan.bukti', $pesanan->id) }}" method="POST" enctype="multipart/form-data">

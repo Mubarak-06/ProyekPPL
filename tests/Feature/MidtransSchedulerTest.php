@@ -21,6 +21,8 @@ class MidtransSchedulerTest extends PelangganTestCase
             'services.midtrans.server_key' => 'test-server',
             'services.midtrans.client_key' => 'test-client',
             'services.midtrans.sandbox_merchant_id' => 'test-merchant',
+            'services.midtrans.sandbox_channels' => ['bca_va', 'dana'],
+            'services.midtrans.sandbox_verified_channels' => ['bca_va', 'dana'],
         ]);
         $data = $this->dataBelanja();
         $paid = $this->payment($data, 'paid');
@@ -40,7 +42,7 @@ class MidtransSchedulerTest extends PelangganTestCase
             ->andReturn($this->response('paid', 'settlement', '200'));
         $snap->shouldReceive('getTransactionStatus')->twice()->with('pending')
             ->andReturn($this->response('pending', 'pending', '201'));
-        $snap->shouldReceive('getTransactionStatus')->once()->with('txn-expired')
+        $snap->shouldReceive('getTransactionStatus')->twice()->with('txn-expired')
             ->andReturn($this->response('expired', 'expire', '407', 'dana'));
         $snap->shouldReceive('getTransactionStatus')->twice()->with('unavailable')
             ->andThrow(new RuntimeException('Not found', 404));
@@ -67,11 +69,26 @@ class MidtransSchedulerTest extends PelangganTestCase
         self::assertSame('Menunggu', $pending->status_pembayaran);
         self::assertSame('Gagal', $expired->refresh()->status_pembayaran);
         self::assertSame('expire', $expired->midtrans_status);
+        self::assertSame('Ditolak', $expired->pesanan->status_pesanan);
+        self::assertSame('Ditolak', $expired->pesanan->pengiriman->status_pengiriman);
         foreach ([$unavailable, $held, $unknownDana] as $payment) {
             self::assertSame('Menunggu', $payment->refresh()->status_pembayaran);
             self::assertNull($payment->midtrans_status);
         }
-        self::assertSame(10, $data['produk']->refresh()->stok);
+        self::assertSame(5, $data['produk']->refresh()->stok);
+        $notice = (array) $this->response('expired', 'expire', '407', 'dana');
+        $notice['signature_key'] = hash('sha512', 'expired40712500.00test-server');
+        $this->postJson('/api/webhooks/midtrans', $notice)->assertOk();
+        self::assertSame(5, $data['produk']->refresh()->stok);
+
+        $order = $expired->pesanan;
+        $this->actingAs($data['user'])->get('/pesanan/'.$order->id)->assertOk()
+            ->assertSee('Dibatalkan')->assertSee('Pembayaran kedaluwarsa')->assertDontSee('Bayar Sekarang');
+        $this->get('/pesanan/'.$order->id.'/pembayaran')->assertOk()
+            ->assertSee('Pembayaran kedaluwarsa')->assertDontSee('Buka pembayaran Snap');
+        $this->postJson('/pesanan/'.$order->id.'/pembayaran/snap')->assertExactJson(['status' => 'rejected']);
+        $this->actingAs($this->akunAdmin())->patch('/admin/pesanan/'.$order->id.'/status', ['status_pesanan' => 'Dikirim'])
+            ->assertSessionHas('error');
         Log::shouldHaveReceived('info')->with('Midtrans Sandbox sync skipped', ['reason' => 'already_running'])->once();
         foreach ([[4, 2], [2, 0]] as [$checked, $synced]) {
             Log::shouldHaveReceived('info')->with('Midtrans Sandbox sync completed', [
@@ -86,6 +103,25 @@ class MidtransSchedulerTest extends PelangganTestCase
         }
     }
 
+    public function test_expired_dana_session_without_identity_is_flagged_without_releasing_stock(): void
+    {
+        config(['services.midtrans.sandbox_merchant_id' => 'test-merchant']);
+        $data = $this->dataBelanja();
+        $payment = $this->payment($data, 'expired-page', 'E-Wallet');
+        $payment->update(['snap_token_expires_at' => now()->subMinute()]);
+        $this->partialMock(MidtransSnapService::class)->shouldNotReceive('getTransactionStatus');
+
+        $this->artisan('midtrans:sync-pending')->assertSuccessful();
+        $this->artisan('midtrans:sync-pending')->assertSuccessful();
+        $this->assertDatabaseHas('midtrans_rekonsiliasi', [
+            'pembayaran_id' => $payment->id, 'catatan_manual' => 'expired_snap_missing_identity', 'status_penahanan' => 'ditahan',
+        ]);
+        $this->assertDatabaseCount('midtrans_rekonsiliasi', 1);
+        self::assertSame('Menunggu', $payment->refresh()->status_pembayaran);
+        self::assertSame('Menunggu', $payment->pesanan->status_pesanan);
+        self::assertSame(9, $data['produk']->refresh()->stok);
+    }
+
     private function payment(array $data, string $reference, string $method = 'Transfer Bank', ?string $transactionId = null): Pembayaran
     {
         $order = Pesanan::create([
@@ -94,7 +130,17 @@ class MidtransSchedulerTest extends PelangganTestCase
             'alamat_id' => $data['alamat'],
             'subtotal' => 12500,
             'total_pembayaran' => 12500,
+            'status_pesanan' => 'Menunggu',
         ]);
+        $order->detailPesanan()->create([
+            'produk_id' => $data['produk']->id, 'nama_produk' => $data['produk']->nama_produk,
+            'harga_satuan' => 12500, 'jumlah' => 1, 'subtotal' => 12500,
+        ]);
+        $order->pengiriman()->create([
+            'nama_penerima' => 'Penerima', 'nomor_telepon' => '081234567890',
+            'alamat_pengiriman' => 'Alamat pengujian', 'status_pengiriman' => 'Menunggu',
+        ]);
+        $data['produk']->decrement('stok');
 
         return $order->pembayaran()->create([
             'gateway' => 'midtrans',

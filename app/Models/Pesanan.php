@@ -6,17 +6,44 @@ use Illuminate\Database\Eloquent\Model;
 
 class Pesanan extends Model
 {
-    protected static function booted(): void
+    // Pemanggil mengunci pesanan dan pembayaran dalam satu transaksi.
+    public function batalkanDanKembalikanStok(): bool
     {
-        static::updated(function (Pesanan $pesanan) {
-            if ($pesanan->wasChanged('status_pesanan') && $pesanan->status_pesanan === 'Ditolak'
-                && in_array($pesanan->getOriginal('status_pesanan'), ['Menunggu', 'Diproses'], true)) {
-                // Penolakan admin mengembalikan stok yang dipesan saat checkout.
-                foreach ($pesanan->detailPesanan()->orderBy('produk_id')->get() as $detail) {
-                    Produk::whereKey($detail->produk_id)->increment('stok', $detail->jumlah);
-                }
-            }
-        });
+        if (! in_array($this->status_pesanan, ['Menunggu', 'Diproses'], true)) {
+            return false;
+        }
+        $pengiriman = $this->pengiriman()->lockForUpdate()->get();
+        $detail = $this->detailPesanan()->orderBy('produk_id')->get();
+        if ($pengiriman->count() !== 1 || $pengiriman->first()->status_pengiriman !== $this->status_pesanan
+            || $detail->isEmpty() || $detail->contains(fn ($item) => $item->jumlah < 1)) {
+            return false;
+        }
+        $produk = Produk::whereIn('id', $detail->pluck('produk_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        if ($detail->contains(fn ($item) => ! $produk->has($item->produk_id))) {
+            return false;
+        }
+
+        foreach ($detail as $item) {
+            $produk[$item->produk_id]->increment('stok', $item->jumlah);
+        }
+        $this->update(['status_pesanan' => 'Ditolak']);
+        $this->pengiriman()->update(['status_pengiriman' => 'Ditolak']);
+
+        return true;
+    }
+
+    public function alasanPembatalan(): ?string
+    {
+        if ($this->status_pesanan !== 'Ditolak') {
+            return null;
+        }
+
+        return match ($this->pembayaran?->midtrans_status) {
+            'expire' => 'Pembayaran kedaluwarsa. Pesanan dibatalkan.',
+            'cancel' => 'Midtrans membatalkan pembayaran. Pesanan dibatalkan.',
+            'deny' => 'Midtrans menolak pembayaran. Pesanan dibatalkan.',
+            default => 'Pesanan telah dibatalkan.',
+        };
     }
 
     protected $table = 'pesanan';

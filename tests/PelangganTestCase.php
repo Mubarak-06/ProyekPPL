@@ -137,4 +137,17 @@ abstract class PelangganTestCase extends TestCase
 
         return $order;
     }
+
+    protected function formCheckout(string $url = '/checkout', string $metode = 'Transfer Bank'): array
+    {
+        $checkout = $this->get($url)->assertOk();
+        $form = [
+            'checkout_token' => $checkout->viewData('token'),
+            'alamat_id' => $checkout->viewData('alamatDipilih')->id,
+            'metode_pembayaran' => $metode,
+        ];
+        $this->assertIsString($form['checkout_token']);
+
+        return $checkout->viewData('langsung') ? $form + ['langsung' => $checkout->viewData('langsung')] : $form;
+    }
 }

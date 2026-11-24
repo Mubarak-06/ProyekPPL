@@ -6,10 +6,13 @@
     <section class="panel">
         <p>Pesanan <strong>{{ $pesanan->kode_pesanan }}</strong></p>
         <p>Total <strong>Rp {{ number_format($pesanan->total_pembayaran, 0, ',', '.') }}</strong></p>
-        @if($pesanan->status_pesanan === 'Ditolak')
-            <p role="status">Pesanan telah ditolak.</p>
-        @elseif($perluPemeriksaan)
-            <p role="status">Pembayaran perlu pemeriksaan.</p>
+        @if($pesanan->alasanPembatalan())
+            <p role="status">{{ $pesanan->alasanPembatalan() }}</p>
+        @endif
+        @if($perluPemeriksaan)
+            <p role="status">Pembayaran sedang diperiksa.</p>
+        @elseif($pesanan->status_pesanan === 'Ditolak')
+            <p>Status pembayaran: {{ $pesanan->pembayaran->status_pembayaran }}.</p>
         @elseif($pesanan->pembayaran->status_pembayaran === 'Berhasil')
             <p role="status">Pembayaran berhasil dan sudah diverifikasi server.</p>
         @elseif($pesanan->pembayaran->status_pembayaran === 'Gagal' && $pesanan->pembayaran->midtrans_status === 'expire')
@@ -36,7 +39,7 @@
         @if(session('status_midtrans'))
             <p role="status">{{ session('status_midtrans') }}</p>
         @endif
-        @if(config('services.midtrans.is_production') === false && !$perluPemeriksaan && $pesanan->pembayaran->status_pembayaran === 'Menunggu')
+        @if(config('services.midtrans.is_production') === false && !$perluPemeriksaan && $pesanan->status_pesanan !== 'Ditolak' && $pesanan->pembayaran->status_pembayaran === 'Menunggu')
             <form method="POST" action="{{ route('pelanggan.pembayaran.periksa', $pesanan->id) }}" data-snap-check>
                 @csrf
                 @if($pesanan->pembayaran->metode_pembayaran === 'E-Wallet' && !$pesanan->pembayaran->midtrans_transaction_id)

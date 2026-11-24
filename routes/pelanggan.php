@@ -23,15 +23,15 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::get('/keranjang', [KeranjangController::class, 'index'])->name('pelanggan.keranjang');
-Route::post('/keranjang/pilihan', [KeranjangController::class, 'pilih'])->name('pelanggan.keranjang.pilih');
-Route::post('/keranjang/{produk}', [KeranjangController::class, 'store'])->whereNumber('produk')->name('pelanggan.keranjang.store');
-Route::put('/keranjang/{produk}', [KeranjangController::class, 'update'])->whereNumber('produk')->name('pelanggan.keranjang.update');
-Route::delete('/keranjang/{id}', [KeranjangController::class, 'destroy'])->whereNumber('id')->name('pelanggan.keranjang.destroy');
+Route::post('/keranjang/pilihan', [KeranjangController::class, 'pilih'])->block(60, 30)->name('pelanggan.keranjang.pilih');
+Route::post('/keranjang/{produk}', [KeranjangController::class, 'store'])->whereNumber('produk')->block(60, 30)->name('pelanggan.keranjang.store');
+Route::put('/keranjang/{produk}', [KeranjangController::class, 'update'])->whereNumber('produk')->block(60, 30)->name('pelanggan.keranjang.update');
+Route::delete('/keranjang/{id}', [KeranjangController::class, 'destroy'])->whereNumber('id')->block(60, 30)->name('pelanggan.keranjang.destroy');
 
 Route::middleware('auth')->name('pelanggan.')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-    Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout');
-    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+    Route::get('/checkout', [CheckoutController::class, 'index'])->block(60, 30)->name('checkout');
+    Route::post('/checkout', [CheckoutController::class, 'store'])->block(60, 30)->name('checkout.store');
     Route::get('/akun', [AkunController::class, 'profil'])->name('profil');
     Route::get('/akun/edit', [AkunController::class, 'editProfil'])->name('profil.edit');
     Route::put('/akun', [AkunController::class, 'updateProfil'])->name('profil.update');
@@ -50,4 +50,5 @@ Route::middleware('auth')->name('pelanggan.')->group(function () {
     Route::post('/pesanan/{id}/pembayaran/periksa', [AkunController::class, 'periksaStatusSnap'])
         ->whereNumber('id')->middleware('throttle:5,1')->name('pembayaran.periksa');
     Route::post('/pesanan/{id}/bukti', [AkunController::class, 'unggahBukti'])->whereNumber('id')->middleware('throttle:10,1')->name('pesanan.bukti');
+    Route::get('/pesanan/{id}/bukti', [AkunController::class, 'lihatBukti'])->whereNumber('id')->name('pesanan.bukti.show');
 });

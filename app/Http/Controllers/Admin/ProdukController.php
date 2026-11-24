@@ -75,7 +75,7 @@ class ProdukController extends Controller
         $validated = $request->validate([
             'nama_produk' => ['required', 'string', 'max:150'],
             'kategori_id' => ['required', 'exists:kategori,id'],
-            'harga' => ['required', 'numeric', 'min:0'],
+            'harga' => ['required', 'regex:/\A[0-9]{1,13}(?:\.0{1,2})?\z/'],
             'stok' => ['required', 'integer', 'min:0'],
             'satuan_id' => [
                 'required',
@@ -262,8 +262,9 @@ class ProdukController extends Controller
         $validated = $request->validate([
             'nama_produk' => ['required', 'string', 'max:150'],
             'kategori_id' => ['required', 'exists:kategori,id'],
-            'harga' => ['required', 'numeric', 'min:0'],
+            'harga' => ['required', 'regex:/\A[0-9]{1,13}(?:\.0{1,2})?\z/'],
             'stok' => ['required', 'integer', 'min:0'],
+            'stok_awal' => ['required', 'integer', 'min:0'],
             'satuan_id' => [
                 'required',
                 Rule::exists('kategori_satuan', 'satuan_id')
@@ -301,29 +302,27 @@ class ProdukController extends Controller
             $validated['material_id'] = null;
         }
 
-        // Mengambil gambar lama dari kolom JSON
-        $gambarLama = json_decode($produk->gambar ?? '[]', true);
-
-        if (!is_array($gambarLama)) {
-            $gambarLama = [];
-        }
-
-        // Menghitung jumlah gambar lama dan baru
-        $jumlahGambarLama = count($gambarLama);
-        $jumlahGambarBaru = count($request->file('gambar', []));
-
-        if ($jumlahGambarLama + $jumlahGambarBaru > 4) {
-            return back()
-                ->withInput()
-                ->withErrors([
-                    'gambar' => 'Jumlah keseluruhan gambar maksimal 4.'
-                ]);
-        }
-
         $pathGambarBaru = [];
 
         try {
             DB::beginTransaction();
+
+            $produk = DB::table('produk')->where('id', $id)->lockForUpdate()->firstOrFail();
+            if ((int) $produk->stok !== (int) $validated['stok_awal']) {
+                DB::rollBack();
+
+                return redirect()->route('admin.produk.edit', $id)->withErrors([
+                    'stok' => 'Stok berubah sejak formulir dibuka. Formulir telah dimuat ulang dengan stok terbaru. Periksa kembali perubahan Anda sebelum menyimpan.',
+                ]);
+            }
+
+            $gambarLama = json_decode($produk->gambar ?? '[]', true);
+            $gambarLama = is_array($gambarLama) ? $gambarLama : [];
+            if (count($gambarLama) + count($request->file('gambar', [])) > 4) {
+                DB::rollBack();
+
+                return back()->withInput()->withErrors(['gambar' => 'Jumlah keseluruhan gambar maksimal 4.']);
+            }
 
             // Memperbarui data produk
             DB::table('produk')

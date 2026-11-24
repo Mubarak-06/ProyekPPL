@@ -11,7 +11,7 @@ class MidtransReconciliationAudit
 {
     public function recordSystemCase(MidtransRekonsiliasi $case, string $source, bool $verified): void
     {
-        if (! in_array($source, ['webhook', 'coordinator'], true)
+        if (! in_array($source, ['webhook', 'coordinator', 'status_check'], true)
             || $case->getConnection()->transactionLevel() === 0) {
             throw new LogicException('Audit sistem harus dicatat dalam transaksi kasus.');
         }

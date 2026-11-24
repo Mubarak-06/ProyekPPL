@@ -2,7 +2,11 @@
 @section('title', 'Detail Pesanan')
 @section('akun-content')
     <h1>Detail Pesanan</h1>
-    <div class="status-pesanan"><span>Status pesanan: {{ $pesanan->status_pesanan }}</span><span>Pembayaran: {{ $pesanan->pembayaran?->status_pembayaran ?? 'Belum tersedia' }}</span><span>Pengiriman: {{ $pesanan->pengiriman?->status_pengiriman ?? 'Belum tersedia' }}</span></div>
+    <div class="status-pesanan"><span>Status pesanan: {{ $pesanan->status_pesanan === 'Ditolak' ? 'Dibatalkan' : $pesanan->status_pesanan }}</span><span>Pembayaran: {{ $pesanan->pembayaran?->status_pembayaran ?? 'Belum tersedia' }}</span><span>Pengiriman: {{ $pesanan->pengiriman?->status_pengiriman === 'Ditolak' ? 'Dibatalkan' : ($pesanan->pengiriman?->status_pengiriman ?? 'Belum tersedia') }}</span></div>
+    @if($pesanan->alasanPembatalan())<p role="status">{{ $pesanan->alasanPembatalan() }}</p>@endif
+    @if($pesanan->pembayaran?->rekonsiliasiAktif->contains(fn ($kasus) => $kasus->menahanPemenuhan($pesanan->pembayaran)))
+        <p role="status">Pembayaran sedang diperiksa.</p>
+    @endif
     <dl class="data-profil">
         <dt>No. Pesanan</dt><dd>{{ $pesanan->kode_pesanan }}</dd>
         <dt>Tanggal Pesanan</dt><dd>{{ $pesanan->created_at->copy()->timezone(config('toko.timezone'))->format('d/m/Y H:i') }} WITA</dd>
@@ -37,7 +41,8 @@
         <a class="tombol tombol-outline" href="{{ route('pelanggan.pesanan') }}">Kembali ke Pesanan Saya</a>
         @if($bisaDibayar)
             @include('pelanggan.partials.tombol-bayar-snap', ['order' => $pesanan])
-        @elseif($pesanan->pembayaran && $pesanan->pembayaran->status_pembayaran !== 'Berhasil')
+        @elseif($pesanan->pembayaran && $pesanan->pembayaran->status_pembayaran !== 'Berhasil'
+            && ($pesanan->status_pesanan !== 'Ditolak' || $pesanan->pembayaran->gateway === 'midtrans'))
             <a class="tombol" href="{{ route('pelanggan.pembayaran', $pesanan->id) }}">{{ $pesanan->pembayaran->gateway === 'midtrans' ? 'Lihat Status Pembayaran' : 'Instruksi Pembayaran' }}</a>
         @endif
     </div>

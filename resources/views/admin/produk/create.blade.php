@@ -297,7 +297,7 @@
 
                         <div class="form-group">
                             <label>Harga <span style="color:red">*</span></label>
-                            <input type="number" name="harga" min="0" placeholder="Masukkan harga">
+                            <input type="number" name="harga" min="0" step="1" placeholder="Masukkan harga">
                         </div>
 
                     </div>

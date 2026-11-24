@@ -2,7 +2,11 @@
 @section('title', $alamat->exists ? 'Edit Alamat' : 'Tambah Alamat')
 @section('akun-content')
     <h1>{{ $alamat->exists ? 'Edit Alamat' : 'Tambah Alamat' }}</h1>
-    <form class="form-alamat" action="{{ $alamat->exists ? route('pelanggan.alamat.update', $alamat->id) : route('pelanggan.alamat.store') }}" method="POST">
+    @php
+        $langsung = request()->query('langsung');
+        $parameterCheckout = $langsung !== null && $langsung === session('checkout_langsung.token') ? ['langsung' => $langsung] : [];
+    @endphp
+    <form class="form-alamat" action="{{ $alamat->exists ? route('pelanggan.alamat.update', ['id' => $alamat->id] + $parameterCheckout) : route('pelanggan.alamat.store', $parameterCheckout) }}" method="POST">
         @csrf
         @if($alamat->exists) @method('PUT') @endif
         <p><label for="nama_penerima">Nama penerima</label><input id="nama_penerima" name="nama_penerima" value="{{ old('nama_penerima', $alamat->nama_penerima) }}" maxlength="100" required></p>
@@ -18,7 +22,7 @@
         </div>
         <div class="aksi-form lebar-penuh">
             <button type="submit">Simpan Alamat</button>
-            <a class="tombol tombol-outline" href="{{ route('pelanggan.alamat') }}">Kembali</a>
+            <a class="tombol tombol-outline" href="{{ $parameterCheckout ? route('pelanggan.checkout', $parameterCheckout) : route('pelanggan.alamat') }}">Kembali</a>
         </div>
     </form>
 @endsection

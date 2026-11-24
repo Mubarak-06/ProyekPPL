@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pelanggan;
 use App\Http\Controllers\Controller;
 use App\Models\Produk;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class KeranjangController extends Controller
@@ -24,6 +25,19 @@ class KeranjangController extends Controller
     public function store(Request $request, Produk $produk)
     {
         $data = $request->validate(['jumlah' => 'required|integer|min:1|max:1000000']);
+
+        if ($request->boolean('beli')) {
+            $this->validasiStok($produk, $data['jumlah']);
+            $token = Str::random(40);
+            $request->session()->put('checkout_langsung', [
+                'token' => $token,
+                'produk_id' => $produk->id,
+                'jumlah' => (int) $data['jumlah'],
+            ]);
+
+            return redirect()->route('pelanggan.checkout', ['langsung' => $token]);
+        }
+
         $keranjang = $request->session()->get('keranjang', []);
         $jumlah = ($keranjang[$produk->id] ?? 0) + $data['jumlah'];
         $this->validasiStok($produk, $jumlah);
@@ -33,11 +47,6 @@ class KeranjangController extends Controller
             $pilihan = $request->session()->get('keranjang_pilihan');
             $pilihan[] = $produk->id;
             $request->session()->put('keranjang_pilihan', array_values(array_unique($pilihan)));
-        }
-
-        if ($request->boolean('beli')) {
-            $request->session()->put('keranjang_pilihan', [$produk->id]);
-            return redirect()->route('pelanggan.checkout');
         }
 
         return back()->with('success', 'Produk ditambahkan ke keranjang.')->with('keranjang_ditambah', true);

@@ -536,7 +536,6 @@
                     $pilihanStatus = match($pesanan->status_pesanan) {
                         'Menunggu' => ['Diproses'],
                         'Diproses' => ['Dikirim'],
-                        'Dikirim' => ['Selesai'],
                         default => []
                     };
 
@@ -546,6 +545,22 @@
                         true
                     );
                 @endphp
+
+                @if($pesanan->alasanPembatalan())
+                    <p role="status">{{ $pesanan->alasanPembatalan() }}</p>
+                    @if($pesanan->pengiriman?->status_pengiriman === 'Ditolak' && $pesanan->detailPesanan->isNotEmpty())
+                        <p>Stok reservasi dikembalikan.</p>
+                    @else
+                        <p>Riwayat stok perlu diperiksa.</p>
+                    @endif
+                @elseif($pesanan->status_pesanan === 'Menunggu' && $pesanan->pembayaran?->gateway === 'midtrans')
+                    <p>Stok reservasi masih ditahan.</p>
+                @elseif($pesanan->status_pesanan === 'Dikirim')
+                    <p>Penyelesaian menunggu pencatatan penerimaan barang.</p>
+                @endif
+                @if($pesanan->pembayaran?->rekonsiliasiAktif->contains(fn ($kasus) => $kasus->menahanPemenuhan($pesanan->pembayaran)))
+                    <p role="status">Pembayaran sedang diperiksa melalui rekonsiliasi.</p>
+                @endif
 
                 <form
                     action="{{ route('admin.pesanan.updateStatus', $pesanan->id) }}"

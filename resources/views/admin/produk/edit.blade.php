@@ -248,6 +248,7 @@
         <form action="{{ route('admin.produk.update', $produk->id) }}" method="POST" enctype="multipart/form-data">
             @csrf
             @method('PUT')
+            <input type="hidden" name="stok_awal" value="{{ old('stok_awal', $produk->stok) }}">
             <div class="form-produk-layout">
 
                 <!-- INFORMASI PRODUK -->
@@ -280,7 +281,7 @@
 
                         <div class="form-group">
                             <label>Harga <span style="color:red">*</span></label>
-                            <input type="number" name="harga" min="0" value="{{ old('harga', $produk->harga) }}"
+                            <input type="number" name="harga" min="0" step="1" value="{{ old('harga', $produk->harga) }}"
                                 placeholder="Masukkan harga">
                         </div>
 

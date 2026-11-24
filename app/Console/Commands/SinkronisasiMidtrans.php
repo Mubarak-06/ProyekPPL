@@ -52,6 +52,8 @@ class SinkronisasiMidtrans extends Command
                 ->whereNotIn('id', $heldPayments)
                 ->where(function ($query) {
                     $query->whereNotNull('midtrans_transaction_id')
+                        ->orWhere(fn ($query) => $query->where('metode_pembayaran', 'E-Wallet')
+                            ->whereNotNull('snap_token')->where('snap_token_expires_at', '<=', now()))
                         ->orWhere(function ($query) {
                             $query->whereIn('metode_pembayaran', ['Transfer Bank', 'QRIS'])
                                 ->where(function ($query) {
