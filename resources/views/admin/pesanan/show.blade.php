@@ -536,6 +536,7 @@
                     $pilihanStatus = match($pesanan->status_pesanan) {
                         'Menunggu' => ['Diproses'],
                         'Diproses' => ['Dikirim'],
+                        'Dikirim' => ['Selesai'],
                         default => []
                     };
 
@@ -556,7 +557,7 @@
                 @elseif($pesanan->status_pesanan === 'Menunggu' && $pesanan->pembayaran?->gateway === 'midtrans')
                     <p>Stok reservasi masih ditahan.</p>
                 @elseif($pesanan->status_pesanan === 'Dikirim')
-                    <p>Penyelesaian menunggu pencatatan penerimaan barang.</p>
+                    <p>Ubah status menjadi Selesai apabila barang telah diterima pelanggan.</p>
                 @endif
                 @if($pesanan->pembayaran?->rekonsiliasiAktif->contains(fn ($kasus) => $kasus->menahanPemenuhan($pesanan->pembayaran)))
                     <p role="status">Pembayaran sedang diperiksa melalui rekonsiliasi.</p>
@@ -590,6 +591,23 @@
                             </option>
                         @endforeach
                     </select>
+
+                    @if($pesanan->status_pesanan === 'Dikirim')
+                        <div style="margin-top: 12px; margin-bottom: 12px;">
+                            <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 12px; cursor: pointer;">
+                                <input
+                                    type="checkbox"
+                                    name="konfirmasi_penerimaan"
+                                    value="1"
+                                    required
+                                    style="margin-top: 3px; accent-color: #008A50;"
+                                >
+                                <span>
+                                    Saya mengonfirmasi bahwa barang telah diterima oleh pelanggan.
+                                </span>
+                            </label>
+                        </div>
+                    @endif
 
                     <button
                         type="submit"

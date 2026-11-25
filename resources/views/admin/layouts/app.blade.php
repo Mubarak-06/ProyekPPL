@@ -27,7 +27,7 @@
             left: 0;
             width: 200px;
             height: 100vh;
-            background: #ffffff;
+            background: #1B2533;
             color: white;
             padding: 20px 12px;
             display: flex;
@@ -43,7 +43,7 @@
             font-size: 14px;
             margin: 0;
             font-weight: 700;
-            color: #111827;
+            color: #ffffff;
         }
 
         .brand p {
@@ -64,7 +64,7 @@
             gap: 12px;
             padding: 10px 13px;
             border-radius: 6px;
-            color: #111827;
+            color: #94A3B8;
             text-decoration: none;
             font-size: 12px;
             font-weight: 500;
@@ -197,7 +197,7 @@
             <a href="{{ route('admin.midtrans-rekonsiliasi.index') }}"
                 class="{{ request()->routeIs('admin.midtrans-rekonsiliasi.*') ? 'active' : '' }}">
                 <i class="bi bi-clipboard-check"></i>
-                Rekonsiliasi Midtrans
+                Pemeriksaan Pembayaran
             </a>
 
             <a href="{{ route('admin.laporan.index') }}"

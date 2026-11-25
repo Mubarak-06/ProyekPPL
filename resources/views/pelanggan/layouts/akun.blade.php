@@ -1,4 +1,5 @@
 @extends('pelanggan.layouts.app')
+@section('main-class', 'halaman-akun')
 @section('content')
     <nav aria-label="Breadcrumb"><a href="{{ route('pelanggan.beranda') }}">Beranda</a> › Akun Saya › @yield('title')</nav>
     <div class="judul-halaman">

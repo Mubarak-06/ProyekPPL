@@ -13,11 +13,38 @@
     @unless(View::hasSection('auth-content'))
         <header class="header-pelanggan">
             <div class="navbar-pelanggan">
+                <button
+                    type="button"
+                    class="toggle-menu-mobile"
+                    aria-label="Buka menu navigasi"
+                    aria-expanded="false"
+                    aria-controls="navigasi-utama"
+                >
+                    <i class="bi bi-list" aria-hidden="true"></i>
+                    <span>Menu</span>
+                </button>
                 <a class="brand" href="{{ route('pelanggan.beranda') }}">CV Karunia Abadi</a>
-                <nav class="menu-utama" aria-label="Navigasi utama">
-                    <a class="{{ request()->routeIs('pelanggan.beranda') ? 'aktif' : '' }}" href="{{ route('pelanggan.beranda') }}">Beranda</a>
-                    <a class="{{ request()->routeIs('pelanggan.produk*') ? 'aktif' : '' }}" href="{{ route('pelanggan.produk') }}">Produk</a>
-                    <a class="{{ request()->routeIs('pelanggan.tentang') ? 'aktif' : '' }}" href="{{ route('pelanggan.tentang') }}">Tentang Kami</a>
+                <nav id="navigasi-utama" class="menu-utama" aria-label="Navigasi utama">
+                    <a class="{{ request()->routeIs('pelanggan.beranda') ? 'aktif' : '' }}"
+                    href="{{ route('pelanggan.beranda') }}"
+                    @if(request()->routeIs('pelanggan.beranda')) aria-current="page" @endif>
+                        <i class="bi bi-house-door ikon-menu-mobile" aria-hidden="true"></i>
+                        Beranda
+                    </a>
+
+                    <a class="{{ request()->routeIs('pelanggan.produk*') ? 'aktif' : '' }}"
+                    href="{{ route('pelanggan.produk') }}"
+                    @if(request()->routeIs('pelanggan.produk')) aria-current="page" @endif>
+                        <i class="bi bi-box-seam ikon-menu-mobile" aria-hidden="true"></i>
+                        Produk
+                    </a>
+
+                    <a class="{{ request()->routeIs('pelanggan.tentang') ? 'aktif' : '' }}"
+                    href="{{ route('pelanggan.tentang') }}"
+                    @if(request()->routeIs('pelanggan.tentang')) aria-current="page" @endif>
+                        <i class="bi bi-info-circle ikon-menu-mobile" aria-hidden="true"></i>
+                        Tentang Kami
+                    </a>
                 </nav>
                 <form class="pencarian" action="{{ route('pelanggan.produk') }}" method="GET" role="search">
                     @if(request()->routeIs('pelanggan.produk'))
@@ -34,11 +61,17 @@
                 <div class="menu-akun">
                     @php($jumlahItemKeranjang = count(session('keranjang', [])))
                     <a class="ikon-keranjang" href="{{ route('pelanggan.keranjang') }}" aria-label="Keranjang ({{ $jumlahItemKeranjang }})">
-                        <i class="bi bi-cart3" aria-hidden="true"></i><span>{{ $jumlahItemKeranjang }}</span>
+                        <i class="bi bi-cart3" aria-hidden="true"></i>
+                        <span class="jumlah-keranjang">{{ $jumlahItemKeranjang }}</span>
+                        <small class="label-keranjang-mobile" aria-hidden="true">Keranjang</small>
                     </a>
                     @auth
                         <details class="dropdown-akun">
-                            <summary><i class="bi bi-person-fill" aria-hidden="true"></i> Akun <i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                            <summary>
+                                <i class="bi bi-person-fill" aria-hidden="true"></i>
+                                <span class="label-akun">Akun</span>
+                                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                            </summary>
                             <div class="dropdown-menu">
                                 <a href="{{ route('pelanggan.profil') }}">Profil Saya</a>
                                 <a href="{{ route('pelanggan.pesanan') }}">Pesanan Saya</a>
@@ -50,7 +83,11 @@
                             </div>
                         </details>
                     @else
-                        <a class="akun-masuk" href="{{ route('login') }}"><i class="bi bi-person-fill" aria-hidden="true"></i> Akun <i class="bi bi-chevron-down" aria-hidden="true"></i></a>
+                        <a class="akun-masuk" href="{{ route('login') }}">
+                            <i class="bi bi-person-fill" aria-hidden="true"></i>
+                            <span class="label-akun">Akun</span>
+                            <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                        </a>
                     @endauth
                 </div>
             </div>

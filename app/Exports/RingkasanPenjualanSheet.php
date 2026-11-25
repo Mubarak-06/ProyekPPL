@@ -6,9 +6,10 @@ use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithStrictNullComparison;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class RingkasanPenjualanSheet implements FromArray, WithTitle, WithStyles, ShouldAutoSize
+class RingkasanPenjualanSheet implements FromArray, WithTitle, WithStyles, ShouldAutoSize, WithStrictNullComparison
 {
     protected array $data;
 

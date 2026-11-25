@@ -1,102 +1,243 @@
 @extends('admin.layouts.app')
-@section('title', 'Rekonsiliasi Midtrans')
+@section('title', 'Pemeriksaan Pembayaran')
 @include('admin.midtrans-rekonsiliasi.styles')
 
 @section('content')
     <div class="rekon">
-        <h1>Rekonsiliasi Midtrans</h1>
-        <form class="rekon-card rekon-pad rekon-filter" method="GET" action="{{ route('admin.midtrans-rekonsiliasi.index') }}">
-            <label>Kode pesanan
-                <input name="kode" maxlength="30" value="{{ $filters['kode'] ?? '' }}">
+        {{-- Judul dan Breadcrumb --}}
+        <div class="rekon-header">
+            <h1>Pemeriksaan Pembayaran</h1>
+
+            <div class="rekon-breadcrumb">
+                <a href="{{ route('admin.dashboard') }}">Dashboard</a>
+                &nbsp; › &nbsp; Pemeriksaan Pembayaran
+            </div>
+        </div>
+
+        {{-- Filter Pemeriksaan Pembayaran --}}
+        <form class="rekon-card rekon-pad rekon-filter"
+            method="GET"
+            action="{{ route('admin.midtrans-rekonsiliasi.index') }}">
+
+            <label>
+                Kode Pesanan
+                <input type="text"
+                    name="kode"
+                    maxlength="30"
+                    placeholder="Cari kode pesanan..."
+                    value="{{ $filters['kode'] ?? '' }}">
             </label>
-            <label>Status kasus
+
+            <label>
+                Status Kasus
                 <select name="status">
-                    <option value="">Semua status</option>
-                    <option value="terbuka" @selected(($filters['status'] ?? '') === 'terbuka')>Terbuka</option>
-                    <option value="selesai" @selected(($filters['status'] ?? '') === 'selesai')>Selesai</option>
+                    <option value="">Semua Status</option>
+
+                    <option value="terbuka"
+                        @selected(($filters['status'] ?? '') === 'terbuka')>
+                        Terbuka
+                    </option>
+
+                    <option value="selesai"
+                        @selected(($filters['status'] ?? '') === 'selesai')>
+                        Selesai
+                    </option>
                 </select>
             </label>
-            <label>Prioritas kasus terbuka
+
+            <label>
+                Prioritas Kasus Terbuka
                 <select name="prioritas">
-                    <option value="">Semua prioritas</option>
-                    <option value="tinggi" @selected(($filters['prioritas'] ?? '') === 'tinggi')>Tinggi</option>
-                    <option value="reguler" @selected(($filters['prioritas'] ?? '') === 'reguler')>Reguler</option>
+                    <option value="">Semua Prioritas</option>
+
+                    <option value="tinggi"
+                        @selected(($filters['prioritas'] ?? '') === 'tinggi')>
+                        Tinggi
+                    </option>
+
+                    <option value="reguler"
+                        @selected(($filters['prioritas'] ?? '') === 'reguler')>
+                        Reguler
+                    </option>
                 </select>
             </label>
-            <label>Jenis kasus
+
+            <label>
+                Jenis Kendala
                 <select name="jenis">
-                    <option value="">Semua jenis</option>
+                    <option value="">Semua Jenis</option>
+
                     @foreach ($alasan as $kode => $label)
-                        <option value="{{ $kode }}" @selected(($filters['jenis'] ?? '') === $kode)>{{ $label }}</option>
+                        <option value="{{ $kode }}"
+                            @selected(($filters['jenis'] ?? '') === $kode)>
+                            {{ $label }}
+                        </option>
                     @endforeach
                 </select>
             </label>
-            <button type="submit">Terapkan filter</button>
-            <a href="{{ route('admin.midtrans-rekonsiliasi.index') }}">Reset</a>
+
+            <button type="submit">
+                <i class="bi bi-search"></i>
+                Tampilkan
+            </button>
+
+            <a href="{{ route('admin.midtrans-rekonsiliasi.index') }}"
+                class="rekon-reset">
+                <i class="bi bi-arrow-clockwise"></i>
+                Reset
+            </a>
+
         </form>
 
+        {{-- Daftar Kendala Pembayaran --}}
         <section class="rekon-card">
+
+            <div class="rekon-pad">
+                <h2>Daftar Kendala Pembayaran</h2>
+
+                <small>
+                    Daftar transaksi pembayaran yang mengalami kendala
+                    atau memerlukan pemeriksaan lebih lanjut.
+                </small>
+            </div>
+
             <div class="rekon-scroll">
-                <table aria-label="Kasus rekonsiliasi">
+
+                <table aria-label="Daftar kendala pembayaran">
+
                     <thead>
-                        <tr><th>Kasus</th><th>Pesanan</th><th>Penanganan</th><th>Alasan</th><th>Kanal</th><th>Dibuat</th><th>Pembayaran lokal</th><th>Pemrosesan / pengiriman</th></tr>
+                        <tr>
+                            <th>ID Kasus</th>
+                            <th>Kode Pesanan</th>
+                            <th>Status Penanganan</th>
+                            <th>Jenis Kendala</th>
+                            <th>Kanal Pembayaran</th>
+                            <th>Tanggal Dibuat</th>
+                            <th>Status Pembayaran</th>
+                            <th>Pemrosesan / Pengiriman</th>
+                            <th>Aksi</th>
+                        </tr>
                     </thead>
+
                     <tbody>
                         @forelse ($kasus as $item)
                             <tr>
-                                <td><a href="{{ route('admin.midtrans-rekonsiliasi.show', $item['id']) }}">#{{ $item['id'] }}</a></td>
+                                <td>#{{ $item['id'] }}</td>
+
                                 <td>
                                     @if ($item['pesanan'])
-                                        <a href="{{ route('admin.pesanan.show', $item['pesanan']->id) }}">{{ $item['pesanan']->kode_pesanan }}</a>
+                                        <a href="{{ route('admin.pesanan.show', $item['pesanan']->id) }}">
+                                            {{ $item['pesanan']->kode_pesanan }}
+                                        </a>
                                     @else
                                         Belum tersedia
                                     @endif
                                 </td>
+
                                 <td>{{ $item['penanganan'] }}</td>
+
                                 <td>{{ $item['alasan'] }}</td>
+
                                 <td>{{ $item['kanal'] }}</td>
-                                <td>{{ $item['dibuat']?->format('d/m/Y H:i:s') ?? 'Belum tersedia' }}</td>
-                                <td>{{ $item['lokal'] ?? 'Belum tersedia' }}</td>
+
+                                <td>
+                                    {{ $item['dibuat']?->format('d/m/Y H:i:s') ?? 'Belum tersedia' }}
+                                </td>
+
+                                <td>
+                                    {{ $item['lokal'] ?? 'Belum tersedia' }}
+                                </td>
+
                                 <td>{{ $item['hambatan'] }}</td>
+
+                                <td>
+                                    <a href="{{ route('admin.midtrans-rekonsiliasi.show', $item['id']) }}"
+                                        class="rekon-action">
+
+                                        <i class="bi bi-eye"></i>
+                                        Detail
+
+                                    </a>
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="8">Tidak ada kasus yang cocok.</td></tr>
+
+                            <tr>
+                                <td colspan="9" class="rekon-empty">
+                                    Tidak ada kendala pembayaran yang cocok.
+                                </td>
+                            </tr>
+
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            @include('admin.midtrans-rekonsiliasi.pagination', ['paginator' => $kasus, 'label' => 'Halaman kasus'])
+
+            @include('admin.midtrans-rekonsiliasi.pagination', [
+                'paginator' => $kasus,
+                'label' => 'Halaman kasus'
+            ])
         </section>
 
+        {{-- Sesi Pembayaran yang Perlu Diperiksa --}}
         <section class="rekon-card">
             <div class="rekon-pad">
-                <h2>Kandidat klaim Snap terlantar</h2>
-                <small>Klaim berikut perlu diperiksa. Status sesi Snap dan hasil pembayaran di Midtrans belum dapat disimpulkan dari daftar ini.</small>
+                <h2>Sesi Pembayaran yang Perlu Diperiksa</h2>
+                <small>
+                    Daftar permintaan sesi pembayaran yang belum dapat
+                    dipastikan hasilnya dan memerlukan pemeriksaan
+                    lebih lanjut.
+                </small>
             </div>
+
             <div class="rekon-scroll">
-                <table aria-label="Kandidat klaim Snap terlantar">
-                    <thead><tr><th>ID pembayaran</th><th>Pesanan</th><th>Waktu klaim</th><th>Pembayaran lokal</th></tr></thead>
+                <table aria-label="Sesi pembayaran yang perlu diperiksa">
+                    <thead>
+                        <tr>
+                            <th>ID Pembayaran</th>
+                            <th>Kode Pesanan</th>
+                            <th>Waktu Permintaan</th>
+                            <th>Status Pembayaran</th>
+                        </tr>
+                    </thead>
+
                     <tbody>
                         @forelse ($kandidat as $item)
                             <tr>
                                 <td>#{{ $item->id }}</td>
                                 <td>
                                     @if ($item->pesanan)
-                                        <a href="{{ route('admin.pesanan.show', $item->pesanan->id) }}">{{ $item->pesanan->kode_pesanan }}</a>
+                                        <a href="{{ route('admin.pesanan.show', $item->pesanan->id) }}">
+                                            {{ $item->pesanan->kode_pesanan }}
+                                        </a>
                                     @else
                                         Belum tersedia
                                     @endif
                                 </td>
-                                <td>{{ $item->snap_requested_at?->format('d/m/Y H:i:s') ?? 'Belum tersedia' }}</td>
+
+                                <td>
+                                    {{ $item->snap_requested_at?->format('d/m/Y H:i:s') ?? 'Belum tersedia' }}
+                                </td>
+
                                 <td>{{ $item->status_pembayaran }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="4">Belum ada kandidat.</td></tr>
+
+                            <tr>
+                                <td colspan="4" class="rekon-empty">
+                                    Belum ada sesi pembayaran yang perlu diperiksa.
+                                </td>
+                            </tr>
+
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            @include('admin.midtrans-rekonsiliasi.pagination', ['paginator' => $kandidat, 'label' => 'Halaman kandidat'])
+
+            @include('admin.midtrans-rekonsiliasi.pagination', [
+                'paginator' => $kandidat,
+                'label' => 'Halaman sesi pembayaran'
+            ])
         </section>
     </div>
 @endsection

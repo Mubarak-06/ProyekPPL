@@ -127,13 +127,54 @@ class AdminMidtransOrderGuardTest extends TestCase
         self::assertTrue($controller->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->has('error'));
         $this->assertState('Menunggu', 8);
         $this->database->getConnection()->table('pembayaran')->update([
-            'status_pembayaran' => 'Berhasil', 'midtrans_transaction_id' => 'paid-txn', 'midtrans_status' => 'settlement',
+            'status_pembayaran' => 'Berhasil',
+            'midtrans_transaction_id' => 'paid-txn',
+            'midtrans_status' => 'settlement',
         ]);
         self::assertTrue($controller->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->has('success'));
         $this->assertState('Diproses', 8);
         self::assertTrue($controller->updateStatus($this->statusRequest('Dikirim'), 1)->getSession()->has('success'));
         self::assertStringContainsString('penerimaan barang', $controller->updateStatus($this->statusRequest('Selesai'), 1)->getSession()->get('error'));
         $this->assertState('Dikirim', 8);
+    }
+
+    public function test_confirmed_receipt_can_complete_order(): void
+    {
+        $db = $this->database->getConnection();
+
+        $db->table('pesanan')->update([
+            'status_pesanan' => 'Dikirim',
+        ]);
+
+        $db->table('pengiriman')->update([
+            'status_pengiriman' => 'Dikirim',
+            'waktu_dikirim' => '2026-11-24 10:00:00',
+        ]);
+
+        $db->table('pembayaran')->update([
+            'status_pembayaran' => 'Berhasil',
+            'midtrans_transaction_id' => 'paid-txn',
+            'midtrans_status' => 'settlement',
+        ]);
+
+        $request = $this->statusRequest('Selesai');
+
+        $request->merge([
+            'konfirmasi_penerimaan' => '1',
+        ]);
+
+        $controller = new PesananController;
+
+        self::assertTrue(
+            $controller->updateStatus($request, 1)
+                ->getSession()->has('success')
+        );
+
+        $this->assertState('Selesai', 8);
+
+        self::assertNotNull(
+            $db->table('pengiriman')->value('waktu_selesai')
+        );
     }
 
     public function test_manual_payment_is_preserved_when_processing_is_denied(): void
@@ -157,7 +198,9 @@ class AdminMidtransOrderGuardTest extends TestCase
         $controller = new PesananController;
         self::assertStringContainsString('catatan pengiriman', $controller->tolak(1)->getSession()->get('error'));
         $db->table('pembayaran')->update([
-            'status_pembayaran' => 'Berhasil', 'midtrans_transaction_id' => 'paid-txn', 'midtrans_status' => 'settlement',
+            'status_pembayaran' => 'Berhasil',
+            'midtrans_transaction_id' => 'paid-txn',
+            'midtrans_status' => 'settlement',
         ]);
         self::assertStringContainsString('Catatan pengiriman', $controller->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->get('error'));
         self::assertSame('Menunggu', $db->table('pesanan')->value('status_pesanan'));
@@ -187,7 +230,16 @@ class AdminMidtransOrderGuardTest extends TestCase
         foreach (['Diproses' => 'Dikirim', 'Dikirim' => 'Selesai'] as $current => $target) {
             $db->table('pesanan')->update(['status_pesanan' => $current]);
             $db->table('pengiriman')->update(['status_pengiriman' => $current]);
-            self::assertTrue($controller->updateStatus($this->statusRequest($target), 1)->getSession()->has('error'));
+            $request = $this->statusRequest($target);
+            if ($target === 'Selesai') {
+                $request->merge([
+                    'konfirmasi_penerimaan' => '1',
+                ]);
+            }
+            self::assertTrue(
+                $controller->updateStatus($request, 1)
+                    ->getSession()->has('error')
+            );
             $this->assertState($current, 8);
         }
     }
@@ -212,7 +264,12 @@ class AdminMidtransOrderGuardTest extends TestCase
 
     #[DataProvider('blockingReconciliations')]
     public function test_open_payment_cases_hold_processing_or_shipping(
-        string $current, string $target, ?string $gatewayStatus, string $reason, string $handling, ?string $transactionId,
+        string $current,
+        string $target,
+        ?string $gatewayStatus,
+        string $reason,
+        string $handling,
+        ?string $transactionId,
     ): void {
         $db = $this->database->getConnection();
         $db->table('pesanan')->update(['status_pesanan' => $current]);

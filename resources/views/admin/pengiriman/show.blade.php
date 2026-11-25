@@ -391,11 +391,11 @@
                         <td colspan="8" style="text-align:right;">Total</td>
                         <td>
                             Rp{{ number_format(
-        $pengiriman->pesanan?->detailPesanan?->sum('subtotal') ?? 0,
-        0,
-        ',',
-        '.'
-    ) }}
+                                $pengiriman->pesanan?->detailPesanan?->sum('subtotal') ?? 0,
+                                0,
+                                ',',
+                                '.'
+                            ) }}
                         </td>
                     </tr>
                 </tfoot>

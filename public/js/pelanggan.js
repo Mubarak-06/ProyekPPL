@@ -15,7 +15,11 @@ document.addEventListener('click', function (event) {
         const nilai = Math.min(Number(input.max || 1000000), Math.max(Number(input.min || 1), Number(input.value || 1) + Number(jumlah.dataset.jumlah)));
         if (nilai !== Number(input.value) && nilai >= 1) {
             input.value = nilai;
-            if (jumlah.form?.hasAttribute('data-jumlah-langsung')) jumlah.form.requestSubmit();
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+
+            if (jumlah.form?.hasAttribute('data-jumlah-langsung')) {
+                jumlah.form.requestSubmit();
+            }
         }
     }
 
@@ -234,3 +238,217 @@ if (wilayah) {
         await muat(kelurahan, 'kelurahan', wilayah.dataset.kecamatan, wilayah.dataset.kelurahan);
     })();
 }
+// ==================================================
+// NAVIGASI HAMBURGER MOBILE
+// ==================================================
+
+document.addEventListener('DOMContentLoaded', function () {
+    const navbar = document.querySelector('.navbar-pelanggan');
+    const tombolMenu = document.querySelector('.toggle-menu-mobile');
+    const navigasi = document.getElementById('navigasi-utama');
+
+    if (!navbar || !tombolMenu || !navigasi) return;
+
+    const ikon = tombolMenu.querySelector('.bi');
+    const label = tombolMenu.querySelector('span');
+    const layarMobile = window.matchMedia('(max-width: 850px)');
+
+    function aturMenu(terbuka) {
+        navbar.classList.toggle('menu-terbuka', terbuka);
+
+        tombolMenu.setAttribute('aria-expanded', String(terbuka));
+
+        tombolMenu.setAttribute(
+            'aria-label',
+            terbuka ? 'Tutup menu navigasi' : 'Buka menu navigasi'
+        );
+
+        ikon.classList.toggle('bi-list', !terbuka);
+        ikon.classList.toggle('bi-x-lg', terbuka);
+
+        label.textContent = terbuka ? 'Tutup' : 'Menu';
+    }
+
+    // Aktifkan hamburger setelah JavaScript siap
+    navbar.classList.add('menu-siap');
+    aturMenu(false);
+
+    // Buka dan tutup menu
+    tombolMenu.addEventListener('click', function () {
+        const terbuka = navbar.classList.contains('menu-terbuka');
+        aturMenu(!terbuka);
+    });
+
+    // Tutup menu ketika tautan navigasi dipilih
+    navigasi.querySelectorAll('a').forEach(function (tautan) {
+        tautan.addEventListener('click', function () {
+            aturMenu(false);
+        });
+    });
+
+    // Tutup menu ketika pengguna klik di luar navbar
+    document.addEventListener('click', function (event) {
+        if (!navbar.contains(event.target)) {
+            aturMenu(false);
+        }
+    });
+
+    // Tutup menu menggunakan tombol Escape
+    document.addEventListener('keydown', function (event) {
+        if (
+            event.key === 'Escape' &&
+            navbar.classList.contains('menu-terbuka')
+        ) {
+            aturMenu(false);
+            tombolMenu.focus();
+        }
+    });
+
+    // Reset menu ketika ukuran layar berubah
+    layarMobile.addEventListener('change', function () {
+        aturMenu(false);
+    });
+});
+// ==================================================
+// VALIDASI JUMLAH PEMBELIAN DETAIL PRODUK
+// ==================================================
+
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.querySelector(
+        '.detail-produk .kontrol-jumlah input[name="jumlah"]'
+    );
+
+    if (!input) return;
+
+    function validasiJumlah() {
+        input.setCustomValidity('');
+
+        const minimum = Number(input.min);
+        const maksimum = Number(input.max);
+
+        if (input.validity.badInput) {
+            input.setCustomValidity(
+                'Jumlah pembelian harus berupa angka.'
+            );
+        } else if (input.validity.valueMissing) {
+            input.setCustomValidity(
+                'Silakan masukkan jumlah pembelian.'
+            );
+        } else if (input.validity.rangeUnderflow) {
+            input.setCustomValidity(
+                `Jumlah pembelian minimal ${minimum}.`
+            );
+        } else if (input.validity.rangeOverflow) {
+            input.setCustomValidity(
+                `Jumlah pembelian maksimal ${maksimum} sesuai stok tersedia.`
+            );
+        } else if (input.validity.stepMismatch) {
+            input.setCustomValidity(
+                'Jumlah pembelian harus berupa bilangan bulat.'
+            );
+        }
+    }
+
+    const kontrol = input.closest('.kontrol-jumlah');
+    const tombolKurang = kontrol.querySelector('[data-jumlah="-1"]');
+    const tombolTambah = kontrol.querySelector('[data-jumlah="1"]');
+
+    function perbaruiKontrolJumlah() {
+        validasiJumlah();
+
+        const nilai = input.valueAsNumber;
+        const minimum = Number(input.min);
+        const maksimum = Number(input.max);
+
+        tombolKurang.disabled =
+            !Number.isFinite(nilai) || nilai <= minimum;
+
+        tombolTambah.disabled =
+            !Number.isFinite(nilai) || nilai >= maksimum;
+    }
+
+    input.addEventListener('input', perbaruiKontrolJumlah);
+    input.addEventListener('change', perbaruiKontrolJumlah);
+    input.addEventListener('invalid', validasiJumlah);
+
+    document.addEventListener('click', function (event) {
+        const tombol = event.target.closest('[data-jumlah]');
+
+        if (tombol && kontrol.contains(tombol)) {
+            perbaruiKontrolJumlah();
+        }
+    });
+
+    window.addEventListener('pageshow', perbaruiKontrolJumlah);
+
+    perbaruiKontrolJumlah();
+});
+// ==================================================
+// VALIDASI JUMLAH PEMBELIAN KERANJANG
+// ==================================================
+
+document.addEventListener('DOMContentLoaded', function () {
+    const daftarInput = document.querySelectorAll(
+        '.halaman-keranjang [data-jumlah-langsung] input[name="jumlah"]'
+    );
+
+    daftarInput.forEach(function (input) {
+        const kontrol = input.closest('.kontrol-jumlah');
+        const tombolKurang = kontrol.querySelector('[data-jumlah="-1"]');
+        const tombolTambah = kontrol.querySelector('[data-jumlah="1"]');
+
+        function validasiJumlah() {
+            input.setCustomValidity('');
+
+            if (input.disabled) return;
+
+            const minimum = Number(input.min);
+            const maksimum = Number(input.max);
+
+            if (input.validity.badInput) {
+                input.setCustomValidity(
+                    'Jumlah pembelian harus berupa angka.'
+                );
+            } else if (input.validity.valueMissing) {
+                input.setCustomValidity(
+                    'Silakan masukkan jumlah pembelian.'
+                );
+            } else if (input.validity.rangeUnderflow) {
+                input.setCustomValidity(
+                    `Jumlah pembelian minimal ${minimum}.`
+                );
+            } else if (input.validity.rangeOverflow) {
+                input.setCustomValidity(
+                    `Jumlah pembelian maksimal ${maksimum} sesuai stok tersedia.`
+                );
+            } else if (input.validity.stepMismatch) {
+                input.setCustomValidity(
+                    'Jumlah pembelian harus berupa bilangan bulat.'
+                );
+            }
+        }
+
+        function perbaruiKontrolJumlah() {
+            validasiJumlah();
+
+            const nilai = input.valueAsNumber;
+            const minimum = Number(input.min);
+            const maksimum = Number(input.max);
+            const stokHabis = input.disabled || maksimum < minimum;
+
+            tombolKurang.disabled =
+                stokHabis || !Number.isFinite(nilai) || nilai <= minimum;
+
+            tombolTambah.disabled =
+                stokHabis || !Number.isFinite(nilai) || nilai >= maksimum;
+        }
+
+        input.addEventListener('input', perbaruiKontrolJumlah);
+        input.addEventListener('change', perbaruiKontrolJumlah);
+        input.addEventListener('invalid', validasiJumlah);
+
+        window.addEventListener('pageshow', perbaruiKontrolJumlah);
+
+        perbaruiKontrolJumlah();
+    });
+});
