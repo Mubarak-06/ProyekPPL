@@ -452,3 +452,103 @@ document.addEventListener('DOMContentLoaded', function () {
         perbaruiKontrolJumlah();
     });
 });
+
+// ==================================================
+// HITUNG MUNDUR SESI PEMBAYARAN MIDTRANS
+// ==================================================
+
+document.addEventListener('DOMContentLoaded', function () {
+    const daftarTimer = document.querySelectorAll(
+        '[data-payment-countdown]'
+    );
+
+    if (!daftarTimer.length) return;
+
+    daftarTimer.forEach(function (timer) {
+        const batasWaktu = Number(timer.dataset.expiresAt);
+        const waktuServer = Number(timer.dataset.serverNow);
+
+        const tampilanWaktu = timer.querySelector(
+            '[data-countdown-value]'
+        );
+
+        const pesan = timer.querySelector(
+            '[data-countdown-message]'
+        );
+
+        const tautan = timer.querySelector(
+            '[data-countdown-link]'
+        );
+
+        if (
+            !Number.isFinite(batasWaktu) ||
+            !Number.isFinite(waktuServer) ||
+            !tampilanWaktu ||
+            !pesan ||
+            !tautan
+        ) {
+            return;
+        }
+
+        const selisihWaktu =
+            (waktuServer * 1000) - Date.now();
+
+        let interval = null;
+
+        function perbaruiTimer() {
+            const waktuSekarang =
+                Date.now() + selisihWaktu;
+
+            const sisaDetik = Math.max(
+                0,
+                Math.ceil(
+                    ((batasWaktu * 1000) - waktuSekarang) / 1000
+                )
+            );
+
+            const menit = Math.floor(sisaDetik / 60);
+            const detik = sisaDetik % 60;
+
+            tampilanWaktu.textContent =
+                String(menit).padStart(2, '0') +
+                ':' +
+                String(detik).padStart(2, '0');
+
+            timer.classList.toggle(
+                'waktu-hampir-habis',
+                sisaDetik > 0 && sisaDetik <= 60
+            );
+
+            timer.classList.toggle(
+                'waktu-habis',
+                sisaDetik === 0
+            );
+
+            pesan.hidden = sisaDetik > 0;
+            tautan.hidden = sisaDetik > 0;
+
+            if (sisaDetik === 0 && interval !== null) {
+                clearInterval(interval);
+                interval = null;
+            }
+        }
+
+        interval = setInterval(perbaruiTimer, 1000);
+
+        perbaruiTimer();
+
+        window.addEventListener(
+            'pageshow',
+            perbaruiTimer
+        );
+
+        document.addEventListener(
+            'visibilitychange',
+            function () {
+                if (!document.hidden) {
+                    perbaruiTimer();
+                }
+            }
+        );
+    });
+});

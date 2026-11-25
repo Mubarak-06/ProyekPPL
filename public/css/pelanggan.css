@@ -4812,3 +4812,476 @@ ul.pesan {
         margin: 16px 0;
     }
 }
+
+/* ==================================================
+   PENYEMPURNAAN HALAMAN PEMBAYARAN DAN HITUNG MUNDUR
+   ================================================== */
+
+/* Container halaman pembayaran */
+
+.pelanggan .halaman-pembayaran {
+    width: 100%;
+    max-width: 856px;
+    margin-inline: auto;
+    padding: 24px 48px 48px;
+}
+
+/* Breadcrumb */
+
+.pelanggan .halaman-pembayaran > nav[aria-label="Breadcrumb"] {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 16px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.pelanggan .halaman-pembayaran > nav[aria-label="Breadcrumb"] i {
+    font-size: 8px;
+    color: var(--abu);
+}
+
+/* Judul halaman */
+
+.pelanggan .halaman-pembayaran .judul-halaman {
+    margin: 0 0 20px;
+}
+
+.pelanggan .halaman-pembayaran .judul-halaman h1 {
+    margin: 0 0 4px;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.3px;
+}
+
+.pelanggan .halaman-pembayaran .judul-halaman p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--abu);
+}
+
+/* Panel pembayaran */
+
+.pelanggan .halaman-pembayaran .panel {
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: none;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.pelanggan .halaman-pembayaran .panel h2 {
+    margin: 0 0 16px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.pelanggan .halaman-pembayaran .panel h3 {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Ringkasan pembayaran Midtrans */
+
+.pelanggan .ringkasan-pembayaran {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.pelanggan .ringkasan-pembayaran > div {
+    min-width: 0;
+}
+
+.pelanggan .ringkasan-pembayaran span {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--abu);
+    font-size: 12px;
+}
+
+.pelanggan .ringkasan-pembayaran strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.pelanggan .nominal-pembayaran {
+    padding-left: 16px;
+    border-left: 1px solid var(--border);
+}
+
+.pelanggan .nominal-pembayaran strong {
+    color: var(--hijau);
+    font-size: 20px;
+    font-weight: 700;
+}
+
+/* Informasi status pembayaran */
+
+.pelanggan .informasi-status-pembayaran {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.pelanggan .informasi-status-pembayaran > p {
+    margin: 0;
+}
+
+.pelanggan .status-bayar {
+    padding: 12px 14px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.pelanggan .status-bayar-menunggu {
+    color: #92400e;
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.pelanggan .status-bayar-gagal {
+    color: #b42337;
+    background: #fff1f2;
+    border-color: #fecdd3;
+}
+
+.pelanggan .status-bayar-berhasil {
+    color: #065f46;
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+}
+
+/* Komponen hitung mundur bersama */
+
+.pelanggan .hitung-mundur-pembayaran {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+    padding: 14px 16px;
+    margin: 12px 0 16px;
+    color: #92400e;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+}
+
+.pelanggan .hitung-mundur-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+.pelanggan .hitung-mundur-label i {
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.pelanggan .hitung-mundur-waktu {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
+}
+
+.pelanggan .hitung-mundur-pesan {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.pelanggan .hitung-mundur-tautan {
+    color: var(--hijau);
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.pelanggan .hitung-mundur-pembayaran [hidden] {
+    display: none !important;
+}
+
+/* Timer hampir habis */
+
+.pelanggan .hitung-mundur-pembayaran.waktu-hampir-habis {
+    color: #b91c1c;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+/* Timer habis, menunggu verifikasi */
+
+.pelanggan .hitung-mundur-pembayaran.waktu-habis {
+    color: #475569;
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+/* Timer pada tabel Pesanan Saya */
+
+.pelanggan .halaman-akun .tabel-pesanan .hitung-mundur-pembayaran {
+    width: 100%;
+    padding: 8px;
+    margin: 8px 0 0;
+    gap: 4px;
+    border-radius: 6px;
+}
+
+.pelanggan .halaman-akun .tabel-pesanan .hitung-mundur-label {
+    font-size: 10px;
+    gap: 4px;
+}
+
+.pelanggan .halaman-akun .tabel-pesanan .hitung-mundur-label i {
+    font-size: 12px;
+}
+
+.pelanggan .halaman-akun .tabel-pesanan .hitung-mundur-waktu {
+    font-size: 18px;
+}
+
+.pelanggan .halaman-akun .tabel-pesanan .hitung-mundur-pesan,
+.pelanggan .halaman-akun .tabel-pesanan .hitung-mundur-tautan {
+    font-size: 10px;
+}
+
+/* Timer pada halaman pembayaran Midtrans */
+
+.pelanggan .panel-pembayaran-snap .hitung-mundur-pembayaran {
+    align-items: center;
+    text-align: center;
+    padding: 16px;
+    margin: 0;
+}
+
+.pelanggan .panel-pembayaran-snap .hitung-mundur-waktu {
+    font-size: 28px;
+}
+
+/* Form pembayaran dan pemeriksaan status */
+
+.pelanggan .panel-pembayaran-snap form[data-snap-payment],
+.pelanggan .panel-pembayaran-snap form[data-snap-check] {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+}
+
+.pelanggan .panel-pembayaran-snap form[data-snap-check] {
+    margin-bottom: 10px;
+}
+
+.pelanggan .panel-pembayaran-snap form label {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.pelanggan .panel-pembayaran-snap form input:not([type="hidden"]) {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 10px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+}
+
+/* Tombol pembayaran */
+
+.pelanggan .halaman-pembayaran .tombol,
+.pelanggan .halaman-pembayaran button[type="submit"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.pelanggan .panel-pembayaran-snap form .tombol,
+.pelanggan .panel-pembayaran-snap .muat-ulang-pembayaran {
+    width: 100%;
+}
+
+/* Navigasi bawah */
+
+.pelanggan .navigasi-pembayaran {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+/* Pembayaran manual */
+
+.pelanggan .halaman-pembayaran .instruksi-bayar {
+    padding: 16px;
+    margin: 16px 0;
+    border-radius: 8px;
+}
+
+.pelanggan .halaman-pembayaran .langkah-bayar {
+    padding-left: 20px;
+}
+
+.pelanggan .halaman-pembayaran .langkah-bayar li {
+    padding: 8px 0 8px 4px;
+}
+
+.pelanggan .halaman-pembayaran .rekening-bayar {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.pelanggan .halaman-pembayaran .rekening-bayar img,
+.pelanggan .halaman-pembayaran .bukti-pembayaran img {
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.pelanggan .halaman-pembayaran .unggah-bukti {
+    padding: 16px;
+    margin: 16px 0;
+    border-radius: 8px;
+}
+
+.pelanggan .halaman-pembayaran .unggah-bukti input {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 12px;
+}
+
+.pelanggan .halaman-pembayaran .aksi-form {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* Tablet */
+
+@media (max-width: 850px) {
+
+    .pelanggan .halaman-pembayaran {
+        padding: 24px;
+    }
+
+    .pelanggan .halaman-pembayaran .panel {
+        padding: 16px;
+    }
+
+    .pelanggan .halaman-akun .tabel-pesanan .hitung-mundur-label {
+        font-size: 11px;
+    }
+
+    .pelanggan .halaman-akun .tabel-pesanan .hitung-mundur-pesan,
+    .pelanggan .halaman-akun .tabel-pesanan .hitung-mundur-tautan {
+        font-size: 11px;
+    }
+}
+
+/* Mobile kecil */
+
+@media (max-width: 480px) {
+
+    .pelanggan .halaman-pembayaran {
+        padding: 20px 16px 32px;
+    }
+
+    .pelanggan .halaman-pembayaran .judul-halaman {
+        margin-bottom: 16px;
+    }
+
+    .pelanggan .halaman-pembayaran .judul-halaman h1 {
+        font-size: 20px;
+    }
+
+    .pelanggan .halaman-pembayaran .panel {
+        padding: 14px;
+    }
+
+    .pelanggan .ringkasan-pembayaran {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        padding: 12px;
+    }
+
+    .pelanggan .nominal-pembayaran {
+        padding: 12px 0 0;
+        border-left: 0;
+        border-top: 1px solid var(--border);
+    }
+
+    .pelanggan .nominal-pembayaran strong {
+        font-size: 18px;
+    }
+
+    .pelanggan .status-bayar {
+        padding: 10px 12px;
+        font-size: 12px;
+    }
+
+    .pelanggan .hitung-mundur-pembayaran {
+        padding: 12px;
+    }
+
+    .pelanggan .panel-pembayaran-snap .hitung-mundur-waktu {
+        font-size: 26px;
+    }
+
+    .pelanggan .halaman-pembayaran .tombol,
+    .pelanggan .halaman-pembayaran button[type="submit"] {
+        min-height: 44px;
+        font-size: 12px;
+    }
+
+    .pelanggan .navigasi-pembayaran {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        margin-top: 16px;
+        padding-top: 12px;
+    }
+
+    .pelanggan .halaman-pembayaran .instruksi-bayar,
+    .pelanggan .halaman-pembayaran .rekening-bayar {
+        padding: 10px;
+    }
+
+    .pelanggan .halaman-pembayaran .aksi-form .tombol {
+        width: 100%;
+    }
+}

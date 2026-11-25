@@ -231,7 +231,7 @@ class PelangganTest extends PelangganTestCase
             ->assertStatus(303)->assertRedirect($url);
         $this->get('/pesanan/1/pembayaran?transaction_id=dana-test-id')
             ->assertOk()->assertSee('dana-test-id')->assertDontSee('Mid-client-test-production')
-            ->assertDontSee('/snap/snap.js')->assertSee('Buka pembayaran Snap');
+            ->assertDontSee('/snap/snap.js')->assertSee('Buka Pembayaran');
         $this->postJson('/pesanan/1/pembayaran/snap')
             ->assertExactJson(['status' => 'ready', 'redirect_url' => $url]);
 

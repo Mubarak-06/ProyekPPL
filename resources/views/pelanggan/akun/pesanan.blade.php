@@ -27,6 +27,7 @@
                         @if($item->pembayaran?->rekonsiliasiAktif->contains(fn ($kasus) => $kasus->menahanPemenuhan($item->pembayaran)))
                             <small>Pembayaran sedang diperiksa.</small>
                         @endif
+                        @include('pelanggan.partials.hitung-mundur-pembayaran', ['order' => $item])
                     </td>
                     <td data-label="Aksi">
                         <div class="aksi-pesanan">

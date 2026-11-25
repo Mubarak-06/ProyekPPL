@@ -37,6 +37,7 @@
             @if($pesanan->pengiriman->catatan_driver)<p>Catatan driver: {{ $pesanan->pengiriman->catatan_driver }}</p>@endif
         </section>
     @endif
+    @include('pelanggan.partials.hitung-mundur-pembayaran', ['order' => $pesanan])
     <div class="aksi-form">
         <a class="tombol tombol-outline" href="{{ route('pelanggan.pesanan') }}">Kembali ke Pesanan Saya</a>
         @if($bisaDibayar)
