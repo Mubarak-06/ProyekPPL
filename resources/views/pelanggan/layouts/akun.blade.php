@@ -17,10 +17,9 @@
                 <a class="{{ request()->routeIs('pelanggan.pesanan*') ? 'aktif' : '' }}" href="{{ route('pelanggan.pesanan') }}"><i class="bi bi-box-seam" aria-hidden="true"></i> Pesanan Saya</a>
                 <a class="{{ request()->routeIs('pelanggan.alamat*') ? 'aktif' : '' }}" href="{{ route('pelanggan.alamat') }}"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i> Alamat Saya</a>
             </nav>
-            <form action="{{ route('pelanggan.logout') }}" method="POST">
-                @csrf
-                <button class="tombol-keluar" type="submit"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Keluar</button>
-            </form>
+            <div class="aksi-keluar">
+                <button class="tombol-keluar" type="button" data-buka-konfirmasi-keluar aria-haspopup="dialog"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Keluar</button>
+            </div>
         </aside>
         <section class="panel konten-akun">
             @yield('akun-content')

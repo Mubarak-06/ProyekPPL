@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="{{ asset('css/pelanggan.css') }}?v={{ hash_file('sha256', public_path('css/pelanggan.css')) }}">
     <script src="{{ asset('js/pelanggan.js') }}?v={{ hash_file('sha256', public_path('js/pelanggan.js')) }}" defer></script>
+    <style>.label-grosir { display: inline-block; padding: .15em .45em; border-radius: .35em; background: #e8f3ea; color: #235b35; font-size: .75rem; vertical-align: middle; }</style>
 </head>
 <body class="pelanggan @yield('body-class')">
     @unless(View::hasSection('auth-content'))
@@ -76,10 +77,7 @@
                                 <a href="{{ route('pelanggan.profil') }}">Profil Saya</a>
                                 <a href="{{ route('pelanggan.pesanan') }}">Pesanan Saya</a>
                                 <a href="{{ route('pelanggan.alamat') }}">Alamat Saya</a>
-                                <form action="{{ route('pelanggan.logout') }}" method="POST">
-                                    @csrf
-                                    <button type="submit">Keluar</button>
-                                </form>
+                                <button type="button" data-buka-konfirmasi-keluar aria-haspopup="dialog">Keluar</button>
                             </div>
                         </details>
                     @else
@@ -108,5 +106,8 @@
         <p data-konfirmasi-teks></p>
         <div class="aksi-form"><button class="tombol-outline" type="button" data-tutup>Batal</button><button type="button" data-setuju-hapus>Ya, Hapus</button></div>
     </dialog>
+    @auth
+        <x-konfirmasi-keluar />
+    @endauth
 </body>
 </html>

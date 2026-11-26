@@ -70,10 +70,13 @@
             <div class="judul-bagian"><h2><i class="bi bi-cart3" aria-hidden="true"></i> Ringkasan Pesanan</h2><a href="{{ $urlPesanan }}">Ubah Pesanan <i class="bi bi-pencil" aria-hidden="true"></i></a></div>
             <ul class="daftar-checkout">
                 @foreach($produk as $item)
-                    <li><div class="foto-checkout">@include('pelanggan.partials.gambar', ['path' => $item->gambar[0] ?? null, 'nama' => $item->nama_produk])</div><div class="info-checkout"><strong>{{ $item->nama_produk }}</strong>@if($item->material)<small>{{ $item->material->nama_material }}</small>@endif @if($item->ukuran)<small>{{ $item->ukuran }}</small>@endif</div><div class="harga-checkout"><strong>Rp{{ number_format($item->harga, 0, ',', '.') }}</strong><small>× {{ $keranjang[$item->id] }}</small></div></li>
+                    <li><div class="foto-checkout">@include('pelanggan.partials.gambar', ['path' => $item->gambar[0] ?? null, 'nama' => $item->nama_produk])</div><div class="info-checkout"><strong>{{ $item->nama_produk }}</strong>@if($item->material)<small>{{ $item->material->nama_material }}</small>@endif @if($item->ukuran)<small>{{ $item->ukuran }}</small>@endif</div><div class="harga-checkout"><strong>Rp{{ number_format($hargaProduk[$item->id]['harga_satuan'], 0, ',', '.') }}</strong><small>× {{ $keranjang[$item->id] }}</small></div></li>
                 @endforeach
             </ul>
             <div class="baris-total"><span>Subtotal Produk ({{ $produk->count() }} item)</span><strong>Rp{{ number_format($subtotal, 0, ',', '.') }}</strong></div>
+            @if($potongan > 0)
+                <div class="baris-total"><span>Potongan Harga Grosir</span><strong>−Rp{{ number_format($potongan, 0, ',', '.') }}</strong></div>
+            @endif
             @if($total !== null)
                 <div class="baris-total"><span>Ongkos Kirim ({{ $alamatDipilih->kelurahan?->nama_kelurahan }})</span><strong>Rp{{ number_format($ongkir->biaya_ongkir, 0, ',', '.') }}</strong></div>
                 <div class="baris-total total-bayar"><span>Total Pembayaran</span><strong>Rp{{ number_format($total, 0, ',', '.') }}</strong></div>

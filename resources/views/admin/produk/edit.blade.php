@@ -351,6 +351,8 @@
 
                     </div>
 
+                    @include('admin.produk.grosir')
+
                     <!-- Deskripsi -->
                     <div class="form-group">
                         <label>Deskripsi Produk <span style="color:red">*</span></label>

@@ -208,13 +208,10 @@
         </nav>
 
         <div class="menu logout">
-            <form action="{{ route('pelanggan.logout') }}" method="POST">
-                @csrf
-                <button class="tombol-keluar" type="submit">
-                    <i class="bi bi-box-arrow-right"></i>
-                    Keluar
-                </button>
-            </form>
+            <button class="tombol-keluar" type="button" data-buka-konfirmasi-keluar aria-haspopup="dialog">
+                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                Keluar
+            </button>
         </div>
     </aside>
 
@@ -233,6 +230,7 @@
         </div>
     </main>
 
+    <x-konfirmasi-keluar />
     @stack('scripts')
 
     <script>

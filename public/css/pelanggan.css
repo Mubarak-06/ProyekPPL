@@ -1064,7 +1064,7 @@ ul.pesan {
     border-left-color: var(--hijau);
     font-weight: 500;
 }
-.sidebar-akun form {
+.sidebar-akun .aksi-keluar {
     border-top: 1px solid var(--border);
     padding-top: 16px;
 }
@@ -1435,7 +1435,7 @@ ul.pesan {
         flex-direction: row;
         flex-wrap: wrap;
     }
-    .sidebar-akun form {
+    .sidebar-akun .aksi-keluar {
         padding-top: 8px;
     }
     .identitas-akun {
@@ -3274,7 +3274,7 @@ ul.pesan {
     font-weight: 600;
 }
 
-.pelanggan .halaman-akun .sidebar-akun > form {
+.pelanggan .halaman-akun .sidebar-akun > .aksi-keluar {
     margin-top: 12px;
     padding-top: 12px;
 }
@@ -3752,7 +3752,7 @@ ul.pesan {
         text-align: center;
     }
 
-    .pelanggan .halaman-akun .sidebar-akun > form {
+    .pelanggan .halaman-akun .sidebar-akun > .aksi-keluar {
         margin-top: 8px;
         padding-top: 8px;
     }

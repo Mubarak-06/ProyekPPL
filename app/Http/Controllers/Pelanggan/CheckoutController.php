@@ -30,7 +30,7 @@ class CheckoutController extends Controller
         if (! $keranjang) {
             return redirect()->route('pelanggan.keranjang')->with('error', 'Keranjang masih kosong.');
         }
-        $produk = Produk::with('material')->whereIn('id', array_keys($keranjang))->orderBy('id')->get();
+        $produk = Produk::with('material', 'hargaGrosir')->whereIn('id', array_keys($keranjang))->orderBy('id')->get();
         $alamat = Alamat::with('kelurahan.ongkir')->where('user_id', $request->user()->id)->get();
         $wilayahAlamat = $this->wilayahPengiriman()
             ->whereIn('kelurahan.id', $alamat->pluck('kelurahan_id'))
@@ -46,7 +46,9 @@ class CheckoutController extends Controller
                 ->withErrors($e->errors());
         }
 
-        $subtotal = $ringkasan['subtotal'];
+        $subtotal = $ringkasan['subtotal'] + $ringkasan['potongan'];
+        $potongan = $ringkasan['potongan'];
+        $hargaProduk = $ringkasan['items'];
         $total = $ringkasan['total'];
         $key = $this->kunciRingkasan($langsung);
         $tersimpan = $request->session()->get($key);
@@ -62,7 +64,7 @@ class CheckoutController extends Controller
             $request->session()->forget($key);
         }
 
-        return view('pelanggan.checkout', compact('keranjang', 'produk', 'subtotal', 'total', 'alamat', 'wilayahAlamat', 'metode', 'alamatDipilih', 'ongkir', 'token', 'langsung'));
+        return view('pelanggan.checkout', compact('keranjang', 'produk', 'hargaProduk', 'subtotal', 'potongan', 'total', 'alamat', 'wilayahAlamat', 'metode', 'alamatDipilih', 'ongkir', 'token', 'langsung'));
     }
 
     public function store(Request $request, MidtransSnapService $snap, MidtransPaymentCoordinator $coordinator)
@@ -159,7 +161,10 @@ class CheckoutController extends Controller
             }
             $ongkir = DB::table('ongkir')->where('kelurahan_id', $alamat->kelurahan_id)->lockForUpdate()->value('biaya_ongkir');
             $wilayah = $this->wilayahPengiriman()->where('kelurahan.id', $alamat->kelurahan_id)->lockForUpdate()->first();
-            $produk = Produk::with(['material' => fn ($query) => $query->lockForUpdate()])
+            $produk = Produk::with([
+                'material' => fn ($query) => $query->lockForUpdate(),
+                'hargaGrosir' => fn ($query) => $query->lockForUpdate(),
+            ])
                 ->whereIn('id', array_keys($keranjang))->orderBy('id')->lockForUpdate()->get();
             $ringkasan = $this->ringkasan($produk, $keranjang, $alamat, $wilayah, $ongkir);
             if ($ringkasan['total'] === null) {
@@ -182,7 +187,7 @@ class CheckoutController extends Controller
             ]);
             foreach ($produk as $item) {
                 $detail = $ringkasan['items'][$item->id];
-                $pesanan->detailPesanan()->create(Arr::except($detail, ['ukuran', 'material_id', 'material', 'satuan_id']));
+                $pesanan->detailPesanan()->create(Arr::except($detail, ['ukuran', 'material_id', 'material', 'satuan_id', 'harga_normal']));
                 $item->decrement('stok', $detail['jumlah']);
             }
             DB::table('pembayaran')->insert([
@@ -237,13 +242,15 @@ class CheckoutController extends Controller
         }
         $items = [];
         $subtotal = 0;
+        $potongan = 0;
         foreach ($produk as $item) {
             $jumlah = filter_var($keranjang[$item->id], FILTER_VALIDATE_INT);
             if ($jumlah === false || $jumlah < 1 || $jumlah > $item->stok) {
                 throw ValidationException::withMessages(['keranjang' => 'Stok '.$item->nama_produk.' tidak mencukupi. Periksa kembali keranjang.']);
             }
-            $harga = $this->rupiahBulat($item->harga, 'Harga '.$item->nama_produk);
-            if ($harga > intdiv(self::BATAS_NOMINAL - $subtotal, $jumlah)) {
+            $hargaNormal = $this->rupiahBulat($item->harga, 'Harga '.$item->nama_produk);
+            $harga = (int) $item->hargaUntukJumlah($jumlah)['harga_satuan'];
+            if ($hargaNormal > intdiv(self::BATAS_NOMINAL - $subtotal - $potongan, $jumlah)) {
                 throw ValidationException::withMessages(['checkout' => 'Subtotal melebihi batas nominal pesanan.']);
             }
             $subtotalItem = $harga * $jumlah;
@@ -254,11 +261,13 @@ class CheckoutController extends Controller
                 'material_id' => $item->material_id,
                 'material' => $item->material?->nama_material,
                 'satuan_id' => $item->satuan_id,
+                'harga_normal' => $hargaNormal,
                 'harga_satuan' => $harga,
                 'jumlah' => $jumlah,
                 'subtotal' => $subtotalItem,
             ];
             $subtotal += $subtotalItem;
+            $potongan += ($hargaNormal - $harga) * $jumlah;
         }
 
         $pengiriman = null;
@@ -277,7 +286,7 @@ class CheckoutController extends Controller
             }
         }
 
-        return ['alamat_id' => $alamat?->id, 'items' => $items, 'subtotal' => $subtotal, 'pengiriman' => $pengiriman, 'total' => $total];
+        return ['alamat_id' => $alamat?->id, 'items' => $items, 'subtotal' => $subtotal, 'potongan' => $potongan, 'pengiriman' => $pengiriman, 'total' => $total];
     }
 
     private function rupiahBulat(mixed $nilai, string $label): int

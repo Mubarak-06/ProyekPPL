@@ -53,9 +53,19 @@ abstract class PelangganTestCase extends TestCase
             $table->decimal('berat', 10, 2);
             $table->decimal('harga', 15, 2);
             $table->unsignedInteger('stok');
+            $table->boolean('grosir_aktif')->default(false);
             $table->text('deskripsi')->nullable();
             $table->json('gambar')->nullable();
             $table->timestamps();
+        });
+        Schema::create('harga_grosir', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('produk_id')->constrained('produk')->cascadeOnDelete();
+            $table->unsignedInteger('min_qty');
+            $table->unsignedInteger('max_qty')->nullable();
+            $table->unsignedBigInteger('harga_satuan');
+            $table->timestamps();
+            $table->unique(['produk_id', 'min_qty']);
         });
         Schema::create('alamat', function (Blueprint $table) {
             $table->id();

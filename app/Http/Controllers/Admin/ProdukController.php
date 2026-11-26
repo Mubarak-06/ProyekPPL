@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ProdukController extends Controller
 {
@@ -90,6 +91,8 @@ class ProdukController extends Controller
             'gambar.*' => ['image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ]);
 
+        $grosir = $this->validasiGrosir($request, $validated['harga']);
+
         // 2. Memeriksa kategori produk
         $kategori = DB::table('kategori')
             ->where('id', $validated['kategori_id'])
@@ -130,6 +133,7 @@ class ProdukController extends Controller
                 'ukuran' => $validated['ukuran'] ?? null,
                 'berat' => $validated['berat'],
                 'harga' => $validated['harga'],
+                'grosir_aktif' => $request->boolean('grosir_aktif'),
                 'stok' => $validated['stok'],
                 'deskripsi' => $validated['deskripsi'] ?? null,
                 'gambar' => null,
@@ -137,6 +141,7 @@ class ProdukController extends Controller
                 'updated_at' => now(),
             ]);
 
+            $this->simpanGrosir($produkId, $grosir);
             $kodeBarang = 'BRG' . str_pad($produkId, 5, '0', STR_PAD_LEFT);
 
             DB::table('produk')
@@ -240,12 +245,15 @@ class ProdukController extends Controller
                 ];
             });
 
+        $grosir = DB::table('harga_grosir')->where('produk_id', $id)->orderBy('min_qty')->get()->all();
+
         return view('admin.produk.edit', compact(
             'produk',
             'kategori',
             'material',
             'satuan',
-            'gambarProduk'
+            'gambarProduk',
+            'grosir'
         ));
     }
 
@@ -316,6 +324,15 @@ class ProdukController extends Controller
                 ]);
             }
 
+            $ubahGrosir = $request->hasAny(['grosir_aktif', 'grosir']);
+            if ($ubahGrosir) {
+                $grosir = $this->validasiGrosir($request, $validated['harga']);
+            } else {
+                $tingkatTersimpan = DB::table('harga_grosir')->where('produk_id', $id)->orderBy('min_qty')->get()
+                    ->map(fn ($tier) => (array) $tier)->all();
+                $this->validasiUrutanGrosir($tingkatTersimpan, (int) $validated['harga']);
+            }
+
             $gambarLama = json_decode($produk->gambar ?? '[]', true);
             $gambarLama = is_array($gambarLama) ? $gambarLama : [];
             if (count($gambarLama) + count($request->file('gambar', [])) > 4) {
@@ -335,10 +352,15 @@ class ProdukController extends Controller
                     'ukuran' => $validated['ukuran'] ?? null,
                     'berat' => $validated['berat'],
                     'harga' => $validated['harga'],
+                    'grosir_aktif' => $ubahGrosir ? $request->boolean('grosir_aktif') : $produk->grosir_aktif,
                     'stok' => $validated['stok'],
                     'deskripsi' => $validated['deskripsi'] ?? null,
                     'updated_at' => now(),
                 ]);
+
+            if ($ubahGrosir) {
+                $this->simpanGrosir($id, $grosir);
+            }
 
             // Menambahkan gambar baru tanpa menghapus gambar lama
             if ($request->hasFile('gambar')) {
@@ -365,6 +387,10 @@ class ProdukController extends Controller
                 ->route('admin.produk.index')
                 ->with('success', 'Produk berhasil diperbarui.');
 
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            throw $e;
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -379,6 +405,54 @@ class ProdukController extends Controller
                 ->withErrors([
                     'update' => 'Produk gagal diperbarui. Silakan coba kembali.'
                 ]);
+        }
+    }
+
+    private function validasiGrosir(Request $request, string $hargaNormal): array
+    {
+        $data = $request->validate([
+            'grosir_aktif' => ['sometimes', 'boolean'],
+            'grosir' => [Rule::requiredIf($request->boolean('grosir_aktif')), 'array'],
+            'grosir.*' => ['required', 'array:min_qty,harga_satuan'],
+            'grosir.*.min_qty' => ['required', 'integer', 'min:2', 'max:4294967295', 'distinct'],
+            'grosir.*.harga_satuan' => ['required', 'integer', 'min:1', 'max:9999999999999'],
+        ]);
+
+        $grosir = collect($data['grosir'] ?? [])->sortBy('min_qty')->values()->all();
+        $this->validasiUrutanGrosir($grosir, (int) $hargaNormal);
+
+        return $grosir;
+    }
+
+    private function validasiUrutanGrosir(array $grosir, int $hargaNormal): void
+    {
+        $hargaSebelumnya = $hargaNormal;
+        $minimalSebelumnya = 1;
+        foreach ($grosir as $tier) {
+            if ($tier['min_qty'] <= $minimalSebelumnya || $tier['harga_satuan'] < 1 || $tier['harga_satuan'] >= $hargaSebelumnya) {
+                throw ValidationException::withMessages([
+                    'grosir' => 'Minimal pembelian harus unik dan harga grosir harus semakin murah dibandingkan harga normal atau tingkatan sebelumnya.',
+                ]);
+            }
+
+            $minimalSebelumnya = (int) $tier['min_qty'];
+            $hargaSebelumnya = (int) $tier['harga_satuan'];
+        }
+    }
+
+    private function simpanGrosir(int $produkId, array $grosir): void
+    {
+        DB::table('harga_grosir')->where('produk_id', $produkId)->delete();
+        foreach ($grosir as $index => $tier) {
+            $minimalBerikutnya = $grosir[$index + 1]['min_qty'] ?? null;
+            DB::table('harga_grosir')->insert([
+                'produk_id' => $produkId,
+                'min_qty' => $tier['min_qty'],
+                'max_qty' => $minimalBerikutnya === null ? null : $minimalBerikutnya - 1,
+                'harga_satuan' => $tier['harga_satuan'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
     }
 

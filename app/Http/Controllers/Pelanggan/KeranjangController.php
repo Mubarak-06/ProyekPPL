@@ -13,13 +13,14 @@ class KeranjangController extends Controller
     public function index(Request $request)
     {
         $keranjang = $request->session()->get('keranjang', []);
-        $produk = Produk::whereIn('id', array_keys($keranjang))->get();
-        $subtotal = $produk->sum(fn ($item) => $item->harga * $keranjang[$item->id]);
+        $produk = Produk::with('hargaGrosir')->whereIn('id', array_keys($keranjang))->get();
+        $hargaProduk = $produk->mapWithKeys(fn ($item) => [$item->id => $item->hargaUntukJumlah($keranjang[$item->id])]);
+        $subtotal = $hargaProduk->sum('subtotal');
         $produkHilang = count($keranjang) !== $produk->count();
         $pilihan = $request->session()->get('keranjang_pilihan', array_keys($keranjang));
-        $subtotalPilihan = $produk->whereIn('id', $pilihan)->sum(fn ($item) => $item->harga * $keranjang[$item->id]);
+        $subtotalPilihan = $produk->whereIn('id', $pilihan)->sum(fn ($item) => $hargaProduk[$item->id]['subtotal']);
 
-        return view('pelanggan.keranjang', compact('keranjang', 'produk', 'subtotal', 'produkHilang', 'pilihan', 'subtotalPilihan'));
+        return view('pelanggan.keranjang', compact('keranjang', 'produk', 'hargaProduk', 'subtotal', 'produkHilang', 'pilihan', 'subtotalPilihan'));
     }
 
     public function store(Request $request, Produk $produk)

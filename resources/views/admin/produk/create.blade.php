@@ -275,7 +275,7 @@
                     <!-- Nama Produk -->
                     <div class="form-group">
                         <label>Nama Produk <span style="color:red">*</span></label>
-                        <input type="text" name="nama_produk" placeholder="Masukkan nama produk">
+                        <input type="text" name="nama_produk" value="{{ old('nama_produk') }}" placeholder="Masukkan nama produk">
                     </div>
 
                     <!-- Kategori dan Harga -->
@@ -287,7 +287,7 @@
                                 <option value="">Pilih kategori</option>
 
                                 @foreach($kategori as $item)
-                                    <option value="{{ $item->id }}">
+                                    <option value="{{ $item->id }}" @selected(old('kategori_id') == $item->id)>
                                         {{ $item->nama_kategori }}
                                     </option>
                                 @endforeach
@@ -297,7 +297,7 @@
 
                         <div class="form-group">
                             <label>Harga <span style="color:red">*</span></label>
-                            <input type="number" name="harga" min="0" step="1" placeholder="Masukkan harga">
+                            <input type="number" name="harga" min="0" step="1" value="{{ old('harga') }}" placeholder="Masukkan harga">
                         </div>
 
                     </div>
@@ -333,7 +333,7 @@
 
                         <div class="form-group">
                             <label>Stok <span style="color:red">*</span></label>
-                            <input type="number" name="stok" min="0" placeholder="Masukkan stok">
+                            <input type="number" name="stok" min="0" value="{{ old('stok') }}" placeholder="Masukkan stok">
                         </div>
 
                         <div class="form-group">
@@ -345,7 +345,7 @@
 
                         <div class="form-group">
                             <label>Berat (gram) <span style="color:red">*</span></label>
-                            <input type="number" name="berat" min="0.01" step="0.01" placeholder="Masukkan berat">
+                            <input type="number" name="berat" min="0.01" step="0.01" value="{{ old('berat') }}" placeholder="Masukkan berat">
                         </div>
 
                     </div>
@@ -363,10 +363,12 @@
                             hidden></p>
                     </div>
 
+                    @include('admin.produk.grosir')
+
                     <!-- Deskripsi -->
                     <div class="form-group">
                         <label>Deskripsi Produk <span style="color:red">*</span></label>
-                        <textarea name="deskripsi" placeholder="Masukkan deskripsi produk di sini..."></textarea>
+                        <textarea name="deskripsi" placeholder="Masukkan deskripsi produk di sini...">{{ old('deskripsi') }}</textarea>
                     </div>
 
                 </div>
@@ -484,10 +486,10 @@
                 select.disabled = true;
             }
 
-            kategori.addEventListener('change', async function () {
+            async function muatPilihan(nilaiAwal = {}) {
 
-                const kategoriId = this.value;
-                const namaKategori = this.options[this.selectedIndex]
+                const kategoriId = kategori.value;
+                const namaKategori = kategori.options[kategori.selectedIndex]
                     .text.trim().toLowerCase();
 
                 resetDropdown(material, 'Pilih material');
@@ -505,6 +507,7 @@
                 ].includes(namaKategori);
 
                 ukuran.disabled = !menggunakanMaterial;
+                if (menggunakanMaterial) ukuran.value = nilaiAwal.ukuran ?? '';
 
                 try {
                     const response = await fetch(
@@ -531,6 +534,7 @@
                         });
 
                         material.disabled = false;
+                        if (nilaiAwal.material) material.value = nilaiAwal.material;
                     }
 
                     // Mengisi pilihan satuan
@@ -542,6 +546,7 @@
                         });
 
                         satuan.disabled = false;
+                        if (nilaiAwal.satuan) satuan.value = nilaiAwal.satuan;
                     }
 
                 } catch (error) {
@@ -549,7 +554,16 @@
                     alert('Data material dan satuan gagal dimuat.');
                 }
 
-            });
+            }
+
+            kategori.addEventListener('change', () => muatPilihan());
+            if (kategori.value) {
+                muatPilihan({
+                    ukuran: @json(old('ukuran')),
+                    material: @json(old('material_id')),
+                    satuan: @json(old('satuan_id')),
+                });
+            }
 
         });
     </script>

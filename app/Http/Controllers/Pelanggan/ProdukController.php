@@ -12,7 +12,7 @@ class ProdukController extends Controller
     public function beranda()
     {
         $kategori = Kategori::orderBy('id')->get();
-        $produk = Produk::withSum([
+        $produk = Produk::with('hargaGrosir')->withSum([
             'detailPesanan as jumlah_terjual' => function ($query) {
                 $query->whereHas('pesanan', fn ($pesanan) => $pesanan->where('status_pesanan', 'Selesai'));
             },
@@ -35,7 +35,7 @@ class ProdukController extends Controller
         $material = \App\Models\Material::orderBy('nama_material')->get();
         $ukuran = Produk::when($data['kategori'] ?? null, fn ($query, $id) => $query->where('kategori_id', $id))
             ->whereNotNull('ukuran')->where('ukuran', '!=', '')->distinct()->orderBy('ukuran')->pluck('ukuran');
-        $produk = Produk::query()
+        $produk = Produk::with('hargaGrosir')
             ->when($data['q'] ?? null, function ($query, $pencarian) {
                 $query->where(function ($query) use ($pencarian) {
                     $query->where('nama_produk', 'like', '%'.$pencarian.'%')
@@ -52,7 +52,7 @@ class ProdukController extends Controller
 
     public function show(Produk $produk)
     {
-        $produk->load('kategori', 'material', 'satuan');
+        $produk->load('kategori', 'material', 'satuan', 'hargaGrosir');
 
         return view('pelanggan.produk.show', compact('produk'));
     }

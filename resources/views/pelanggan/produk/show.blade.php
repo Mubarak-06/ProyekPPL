@@ -22,7 +22,7 @@
             @endforeach
         </div>
         <section class="info-produk">
-            <h1>{{ $produk->nama_produk }}</h1>
+            <h1>{{ $produk->nama_produk }} @if($produk->tingkatanGrosir()) <small class="label-grosir">Grosir</small> @endif</h1>
             <p class="harga">Rp {{ number_format($produk->harga, 0, ',', '.') }}</p>
             <div class="spesifikasi">
                 <h3>Spesifikasi</h3>

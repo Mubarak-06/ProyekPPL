@@ -35,7 +35,19 @@
                     </div>
                     <div class="info-item">
                         <h2><a href="{{ route('pelanggan.produk.show', $item) }}">{{ $item->nama_produk }}</a></h2>
-                        <p class="harga">Rp{{ number_format($item->harga, 0, ',', '.') }}</p>
+                        @php($hargaItem = $hargaProduk[$item->id])
+                        <p class="harga">
+                            @if($hargaItem['hemat'] > 0)
+                                <del>Rp{{ number_format($item->harga, 0, ',', '.') }}</del>
+                            @endif
+                            Rp{{ number_format($hargaItem['harga_satuan'], 0, ',', '.') }}
+                        </p>
+                        @if($hargaItem['hemat'] > 0)
+                            <small>Hemat Rp{{ number_format($hargaItem['hemat'], 0, ',', '.') }}</small><br>
+                        @endif
+                        @if($hargaItem['minimal_berikutnya'] !== null)
+                            <small>Harga grosir berikutnya mulai {{ $hargaItem['minimal_berikutnya'] }} barang.</small>
+                        @endif
                         <small>Stok: {{ $item->stok }}{{ $item->satuan?->nama_satuan ? ' '.$item->satuan->nama_satuan : '' }}</small>
                         @if($keranjang[$item->id] > $item->stok)
                             <p role="alert">Jumlah melebihi stok. Ubah jumlah atau hapus produk.</p>
@@ -48,7 +60,7 @@
                         <div class="kontrol-jumlah"><button type="button" data-jumlah="-1" aria-label="Kurangi jumlah {{ $item->nama_produk }}" @disabled($keranjang[$item->id] <= 1 || $item->stok < 1)>−</button><input id="jumlah-{{ $item->id }}" type="number" name="jumlah" value="{{ $keranjang[$item->id] }}" min="1" max="{{ $item->stok }}" required @disabled($item->stok < 1)><button type="button" data-jumlah="1" aria-label="Tambah jumlah {{ $item->nama_produk }}" @disabled($keranjang[$item->id] >= $item->stok)>+</button></div>
                         <noscript><button class="tombol-outline" type="submit" @disabled($item->stok < 1)>Perbarui</button></noscript>
                     </form>
-                    <div class="subtotal-item"><span>Subtotal</span><strong class="harga">Rp{{ number_format($item->harga * $keranjang[$item->id], 0, ',', '.') }}</strong></div>
+                    <div class="subtotal-item"><span>Subtotal</span><strong class="harga">Rp{{ number_format($hargaItem['subtotal'], 0, ',', '.') }}</strong></div>
                     <form class="hapus-item" action="{{ route('pelanggan.keranjang.destroy', $item->id) }}" method="POST">
                         @csrf
                         @method('DELETE')
