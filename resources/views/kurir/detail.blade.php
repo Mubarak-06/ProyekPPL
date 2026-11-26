@@ -24,25 +24,32 @@
 
             @include('kurir.tujuan')
 
-            <div class="kurir-aksi">
-                @if($nomor = preg_replace('/[^0-9+]/', '', $pengiriman->nomor_telepon))
-                    <a class="kirim-tombol kirim-tombol-outline"
-                        href="tel:{{ $nomor }}">
-                        <i class="bi bi-telephone" aria-hidden="true"></i>
-                        Hubungi Pelanggan
-                    </a>
-                @endif
+            @php
+                $nomor = preg_replace('/[\s()-]+/', '', (string) $pengiriman->nomor_telepon);
 
-                @if($pengiriman->alamat_pengiriman)
+                if (str_starts_with($nomor, '+62')) {
+                    $nomor = substr($nomor, 1);
+                } elseif (str_starts_with($nomor, '0')) {
+                    $nomor = '62' . substr($nomor, 1);
+                }
+
+                $pesan = "Halo, Kak {$pengiriman->nama_penerima}.\n\n"
+                    . "Saya kurir CV Karunia Abadi yang bertugas mengantarkan pesanan Anda.\n\n"
+                    . "No. Pesanan: {$pengiriman->pesanan->kode_pesanan}\n\n"
+                    . "Saya ingin mengonfirmasi pengiriman pesanan tersebut.\n\n"
+                    . "Terima kasih.";
+            @endphp
+
+            @if(preg_match('/\A628[0-9]{7,12}\z/', $nomor))
+                <div class="kurir-aksi">
                     <a class="kirim-tombol kirim-tombol-outline"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        href="https://www.google.com/maps/dir/?api=1&amp;destination={{ rawurlencode($pengiriman->alamat_pengiriman) }}">
-                        <i class="bi bi-map" aria-hidden="true"></i>
-                        Buka Petunjuk Arah
+                        href="https://wa.me/{{ $nomor }}?text={{ rawurlencode($pesan) }}" target="_blank"
+                        rel="noopener noreferrer">
+                        <i class="bi bi-whatsapp" aria-hidden="true"></i>
+                        Hubungi via WhatsApp
                     </a>
-                @endif
-            </div>
+                </div>
+            @endif
         </section>
 
         <section class="kirim-panel">
@@ -61,8 +68,10 @@
                     @include('kurir.mulai')
                 </div>
 
-            @elseif($pengiriman->tahap() === \App\Models\Pengiriman::PERJALANAN
-                && ! $pengiriman->kendala->contains(fn ($kendala) => ! $kendala->diselesaikan_at))
+            @elseif(
+                    $pengiriman->tahap() === \App\Models\Pengiriman::PERJALANAN
+                    && !$pengiriman->kendala->contains(fn($kendala) => !$kendala->diselesaikan_at)
+                )
 
                 <div class="kurir-info-box warning">
                     <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
@@ -71,11 +80,8 @@
                     </span>
                 </div>
 
-                <form class="kirim-form"
-                    method="POST"
-                    enctype="multipart/form-data"
-                    action="{{ route('kurir.sampai', $pengiriman) }}"
-                    data-judul="Konfirmasi Barang Sampai"
+                <form class="kirim-form" method="POST" enctype="multipart/form-data"
+                    action="{{ route('kurir.sampai', $pengiriman) }}" data-judul="Konfirmasi Barang Sampai"
                     data-konfirmasi-pengiriman="Apakah Anda yakin barang telah diserahkan kepada penerima?"
                     data-setuju="Ya, Barang Sampai">
 
@@ -92,20 +98,13 @@
 
                     <label>
                         Nama Penerima
-                        <input name="penerima_aktual"
-                            value="{{ old('penerima_aktual') }}"
-                            placeholder="Masukkan nama penerima"
-                            maxlength="100"
-                            required>
+                        <input name="penerima_aktual" value="{{ old('penerima_aktual') }}" placeholder="Masukkan nama penerima"
+                            maxlength="100" required>
                     </label>
 
                     <label>
                         Foto Bukti Penyerahan
-                        <input id="foto-penyerahan"
-                            type="file"
-                            name="foto"
-                            accept="image/*"
-                            required>
+                        <input id="foto-penyerahan" type="file" name="foto" accept="image/*" required>
                     </label>
 
                     <p class="kurir-form-help">
@@ -114,16 +113,11 @@
                         Hindari foto wajah dan dokumen pribadi.
                     </p>
 
-                    <img id="preview-penyerahan"
-                        class="kirim-foto"
-                        alt="Pratinjau foto bukti"
-                        hidden>
+                    <img id="preview-penyerahan" class="kirim-foto" alt="Pratinjau foto bukti" hidden>
 
                     <label>
                         Catatan Penyerahan
-                        <textarea name="catatan_penyerahan"
-                            rows="3"
-                            maxlength="1000"
+                        <textarea name="catatan_penyerahan" rows="3" maxlength="1000"
                             placeholder="Tambahkan catatan jika diperlukan">{{ old('catatan_penyerahan') }}</textarea>
                     </label>
 
