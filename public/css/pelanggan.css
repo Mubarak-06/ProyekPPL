@@ -5285,3 +5285,381 @@ ul.pesan {
         width: 100%;
     }
 }
+
+/* ========================================
+   PELACAKAN PENGIRIMAN PELANGGAN
+======================================== */
+
+#lacak-pengiriman {
+    margin-top: 16px;
+    padding: 20px;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    background: #FFFFFF;
+    color: #111827;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+#lacak-pengiriman h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 16px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+#lacak-pengiriman h2 i {
+    color: #008A50;
+    font-size: 18px;
+}
+
+#lacak-pengiriman p {
+    margin: 0 0 10px;
+    line-height: 1.7;
+}
+
+#lacak-pengiriman strong {
+    font-weight: 600;
+}
+
+/* Informasi penerima */
+
+.kirim-penerima {
+    padding: 14px;
+    margin-bottom: 16px;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    background: #F8FAFC;
+}
+
+.kirim-penerima h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.kirim-penerima h3 i {
+    color: #008A50;
+}
+
+#lacak-pengiriman .kirim-penerima p:last-child {
+    margin-bottom: 0;
+}
+
+/* Timeline pengiriman */
+
+#lacak-pengiriman .kirim-timeline {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+#lacak-pengiriman .kirim-timeline li {
+    position: relative;
+    margin-left: 7px;
+    padding: 0 0 20px 23px;
+    border-left: 2px solid #BBE5CF;
+    line-height: 1.6;
+    font-weight: 500;
+}
+
+#lacak-pengiriman .kirim-timeline li::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: -6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #008A50;
+    box-shadow: 0 0 0 3px #DCFCE7;
+}
+
+#lacak-pengiriman .kirim-timeline li:last-child {
+    border-left-color: transparent;
+    padding-bottom: 0;
+}
+
+#lacak-pengiriman .kirim-timeline time,
+#lacak-pengiriman .kirim-timeline small {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: 400;
+    color: #64748B;
+}
+
+/* Informasi perkembangan */
+
+.kirim-informasi {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px;
+    margin: 16px 0;
+    border: 1px solid #BFDBFE;
+    border-radius: 8px;
+    background: #EFF6FF;
+    color: #1D4ED8;
+    line-height: 1.7;
+}
+
+.kirim-informasi i {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.kirim-informasi.berhasil {
+    background: #F0FDF4;
+    border-color: #BBF7D0;
+    color: #15803D;
+}
+
+.kirim-informasi.peringatan {
+    background: #FFFBEB;
+    border-color: #FDE68A;
+    color: #92400E;
+}
+
+#lacak-pengiriman .kirim-informasi p {
+    margin: 4px 0 0;
+}
+
+/* Foto bukti penyerahan */
+
+#lacak-pengiriman .kirim-foto {
+    display: block;
+    width: min(100%, 320px);
+    max-height: 280px;
+    margin: 12px 0 16px;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    object-fit: contain;
+    object-position: left;
+}
+
+#lacak-pengiriman .kirim-foto[hidden] {
+    display: none;
+}
+
+/* Kendala pengiriman */
+
+#lacak-pengiriman .kirim-panel {
+    padding: 14px;
+    margin: 16px 0;
+    border: 1px solid #FDE68A;
+    border-radius: 8px;
+    background: #FFFBEB;
+    color: #92400E;
+}
+
+#lacak-pengiriman .kirim-panel h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* Form konfirmasi dan laporan kendala */
+
+.kirim-tindakan {
+    display: grid;
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.kirim-tindakan form {
+    margin: 0;
+}
+
+#lacak-pengiriman .kirim-form {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    background: #F8FAFC;
+}
+
+#lacak-pengiriman .kirim-form label {
+    display: grid;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #334155;
+}
+
+#lacak-pengiriman .kirim-form input:not([type="checkbox"]),
+#lacak-pengiriman .kirim-form textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid #CBD5E1;
+    border-radius: 8px;
+    background: #FFFFFF;
+    color: #111827;
+    font: inherit;
+}
+
+#lacak-pengiriman .kirim-form textarea {
+    min-height: 85px;
+    resize: vertical;
+}
+
+#lacak-pengiriman .kirim-form label:has(input[type="checkbox"]) {
+    display: flex;
+    align-items: center;
+}
+
+#lacak-pengiriman .kirim-tombol,
+.kirim-dialog .kirim-tombol {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: fit-content;
+    min-height: 40px;
+    padding: 10px 16px;
+    border: 1px solid #008A50;
+    border-radius: 8px;
+    background: #008A50;
+    color: #FFFFFF;
+    font: inherit;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+#lacak-pengiriman .kirim-tombol:hover,
+.kirim-dialog .kirim-tombol:hover {
+    background: #007344;
+    border-color: #007344;
+    color: #FFFFFF;
+}
+
+#lacak-pengiriman .kirim-form .kirim-tombol {
+    background: #FFFFFF;
+    border-color: #CBD5E1;
+    color: #475569;
+}
+
+#lacak-pengiriman .kirim-form .kirim-tombol:hover {
+    background: #F1F5F9;
+}
+
+#lacak-pengiriman .kirim-terima {
+    width: 100%;
+}
+
+/* Dialog konfirmasi pengiriman */
+
+.kirim-dialog {
+    box-sizing: border-box;
+    width: min(400px, calc(100% - 32px));
+    padding: 20px;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    background: #FFFFFF;
+    color: #111827;
+    font-family: inherit;
+    font-size: 13px;
+    box-shadow: 0 16px 40px rgb(15 23 42 / 15%);
+}
+
+.kirim-dialog::backdrop {
+    background: rgb(15 23 42 / 40%);
+}
+
+.kirim-dialog form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.kirim-dialog .kirim-batal {
+    background: #FFFFFF;
+    color: #475569;
+    border-color: #CBD5E1;
+}
+
+.kirim-dialog .kirim-batal:hover {
+    background: #F1F5F9;
+    color: #111827;
+    border-color: #CBD5E1;
+}
+
+#lacak-pengiriman :focus-visible,
+.kirim-dialog :focus-visible {
+    outline: 2px solid #008A50;
+    outline-offset: 2px;
+}
+
+/* Responsif */
+
+@media (max-width: 480px) {
+    #lacak-pengiriman {
+        padding: 14px;
+    }
+
+    #lacak-pengiriman h2 {
+        font-size: 15px;
+    }
+
+    .kirim-penerima {
+        padding: 12px;
+    }
+
+    #lacak-pengiriman .kirim-timeline li {
+        padding-left: 18px;
+    }
+
+    #lacak-pengiriman .kirim-tombol {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    .kirim-dialog form > button {
+        flex: 1;
+        min-height: 44px;
+    }
+}
+/* Estimasi Sampai - Pesanan Saya */
+.tabel-pesanan .estimasi-pesanan {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 8px 0;
+    padding: 10px;
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+    border-radius: 6px;
+    color: #008A50;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.tabel-pesanan .estimasi-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.tabel-pesanan .estimasi-pesanan strong {
+    font-size: 12px;
+    font-weight: 600;
+    color: #008A50;
+}
+
+@media (max-width: 480px) {
+    .tabel-pesanan .estimasi-pesanan {
+        padding: 8px 10px;
+        text-align: left;
+    }
+}

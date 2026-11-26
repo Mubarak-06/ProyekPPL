@@ -23,6 +23,23 @@
                         <span class="badge-status status-{{ strtolower($item->status_pesanan) }}">{{ $item->status_pesanan === 'Ditolak' ? 'Dibatalkan' : $item->status_pesanan }}</span>
                         <small>Pembayaran: {{ $item->pembayaran?->status_pembayaran ?? 'Belum tersedia' }}</small>
                         <small>Pengiriman: {{ $item->pengiriman?->tahap() ?? 'Belum tersedia' }}</small>
+                        @if($item->pengiriman?->estimasi_tanggal && in_array($item->pengiriman->tahap(), ['Disiapkan', 'Siap Dikirim', 'Dalam Perjalanan'], true))
+                            <div class="estimasi-pesanan">
+                                <span class="estimasi-label">
+                                    <i class="bi bi-calendar-event"></i> Estimasi Sampai
+                                </span>
+
+                                <strong>
+                                    {{ \Carbon\Carbon::parse($item->pengiriman->estimasi_tanggal)->format('d M Y') }}
+                                </strong>
+
+                                @if($item->pengiriman->estimasi_jam)
+                                    <span>
+                                        {{ substr($item->pengiriman->estimasi_jam, 0, 5) }} WITA
+                                    </span>
+                                @endif
+                            </div>
+                        @endif
                         @if($item->pengiriman)
                             <a href="{{ route('pelanggan.pesanan.show', $item) }}#lacak-pengiriman">Lacak Pengiriman</a>
                         @endif

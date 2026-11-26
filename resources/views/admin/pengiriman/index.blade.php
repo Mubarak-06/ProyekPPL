@@ -383,7 +383,18 @@
                                         Rp{{ number_format($item->ongkos_kirim, 0, ',', '.') }}
                                     </td>
 
-                                    <td>-</td>
+                                    <td data-order="{{ $item->estimasi_tanggal ? \Carbon\Carbon::parse($item->estimasi_tanggal)->format('Y-m-d') . ' ' . ($item->estimasi_jam ?? '00:00:00') : '' }}">
+                                        @if($item->estimasi_tanggal)
+                                            {{ \Carbon\Carbon::parse($item->estimasi_tanggal)->format('d M Y') }}
+                                            @if($item->estimasi_jam)
+                                                <span class="pengiriman-subtext">
+                                                    {{ substr($item->estimasi_jam, 0, 5) }} WITA
+                                                </span>
+                                            @endif
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
 
                                     <td>
                                         <span class="pengiriman-status {{ $item->status_pengiriman }}">

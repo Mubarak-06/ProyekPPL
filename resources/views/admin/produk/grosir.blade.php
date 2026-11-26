@@ -1,5 +1,5 @@
 <fieldset id="pengaturan-grosir" class="form-group">
-    <legend>Harga Grosir</legend>
+    <h3 class="grosir-title">Harga Grosir</h3>
     <input type="hidden" name="grosir_aktif" value="0">
     <label><input class="cek-grosir" type="checkbox" name="grosir_aktif" value="1" @checked(old('grosir_aktif', $produk->grosir_aktif ?? false))> Aktifkan harga grosir</label>
     <div data-tingkatan>
@@ -30,42 +30,131 @@
     </template>
 </fieldset>
 <style>
-    #pengaturan-grosir { min-width: 0; padding: 1rem; border: 1px solid #d1d5db; border-radius: .5rem; }
-    #pengaturan-grosir .cek-grosir { width: auto; margin-right: .35rem; }
+    /* Pengaturan Harga Grosir */
+    #pengaturan-grosir {
+        min-width: 0;
+        margin: 0 0 15px;
+        padding: 15px;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        background: #FFFFFF;
+    }
+
+    #pengaturan-grosir .grosir-title {
+        margin: 0 0 14px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #111827;
+    }
+
+    #pengaturan-grosir > label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        cursor: pointer;
+    }
+
+    #pengaturan-grosir .cek-grosir {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        accent-color: #008A50;
+        cursor: pointer;
+    }
+
     #pengaturan-grosir [data-tingkat] {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
-        gap: .75rem;
+        gap: 12px;
         align-items: end;
-        margin: .75rem 0;
+        padding: 12px;
+        margin-bottom: 12px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
     }
-    #pengaturan-grosir [data-tingkat] label { margin-bottom: 0; }
-    #pengaturan-grosir [data-tingkat] input { margin-top: 4px; }
+
+    #pengaturan-grosir [data-tingkat] label {
+        min-width: 0;
+        margin-bottom: 0;
+        font-size: 11px;
+    }
+
+    #pengaturan-grosir [data-tingkat] input {
+        min-width: 0;
+        height: 40px;
+        margin-top: 6px;
+    }
+
     #pengaturan-grosir button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         border: 1px solid transparent;
         border-radius: 6px;
-        font: inherit;
+        font-family: 'Poppins', sans-serif;
         cursor: pointer;
+        transition: background 0.2s, border-color 0.2s;
     }
+
     #pengaturan-grosir [data-tambah] {
+        min-height: 36px;
         padding: 8px 12px;
-        border-color: #a8c5ae;
-        background: #f3faf4;
-        color: #235b35;
-        font-size: 12px;
-        font-weight: 600;
+        border-color: #BBF7D0;
+        background: #F0FDF4;
+        color: #008A50;
+        font-size: 11px;
+        font-weight: 500;
     }
+
+    #pengaturan-grosir [data-tambah]:hover {
+        background: #DCFCE7;
+        border-color: #008A50;
+    }
+
     #pengaturan-grosir [data-hapus] {
-        display: grid;
-        place-items: center;
-        width: 42px;
-        height: 42px;
-        background: #fff1f2;
-        color: #be123c;
-        font-size: 16px;
+        width: 40px;
+        height: 40px;
+        background: #FEF2F2;
+        border-color: #FECACA;
+        color: #DC2626;
+        font-size: 14px;
     }
-    #pengaturan-grosir [data-hapus]:hover { background: #ffe4e6; color: #9f1239; }
-    #pengaturan-grosir [data-hapus]:focus-visible { outline: 2px solid #be123c; outline-offset: 2px; }
+
+    #pengaturan-grosir [data-hapus]:hover {
+        background: #FEE2E2;
+    }
+
+    #pengaturan-grosir button:focus-visible {
+        outline: 2px solid #008A50;
+        outline-offset: 2px;
+    }
+
+    #pengaturan-grosir [role="alert"] {
+        margin: 8px 0;
+        font-size: 11px;
+        color: #DC2626;
+    }
+
+    @media (max-width: 600px) {
+        #pengaturan-grosir {
+            padding: 12px;
+        }
+
+        #pengaturan-grosir [data-tingkat] {
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+        }
+
+        #pengaturan-grosir [data-tingkat] label:first-child {
+            grid-column: 1 / -1;
+        }
+
+        #pengaturan-grosir [data-tambah] {
+            width: 100%;
+        }
+    }
 </style>
 <script>
     (() => {
