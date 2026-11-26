@@ -3,6 +3,10 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Admin\PesananController;
+use App\Models\Pesanan;
+use App\Models\User;
+use App\Services\AlurPengiriman;
+use App\Services\PemeriksaanPembayaranPengiriman;
 use Illuminate\Config\Repository;
 use Illuminate\Container\Container;
 use Illuminate\Database\Capsule\Manager;
@@ -104,7 +108,7 @@ class AdminMidtransOrderGuardTest extends TestCase
             $db->table('midtrans_rekonsiliasi')->insert(['pembayaran_id' => 1, 'status_penanganan' => 'menunggu']);
         }
         $before = $db->table('pembayaran')->first();
-        $reply = (new PesananController)->tolak(1);
+        $reply = (new PesananController)->tolak($this->statusRequest('Ditolak'), 1, new PemeriksaanPembayaranPengiriman);
 
         self::assertStringContainsString('Penolakan ditahan', $reply->getSession()->get('error'));
         self::assertEquals($before, $db->table('pembayaran')->first());
@@ -115,66 +119,42 @@ class AdminMidtransOrderGuardTest extends TestCase
     public function test_safe_midtrans_rejection_restores_stock_once(): void
     {
         $controller = new PesananController;
-        self::assertTrue($controller->tolak(1)->getSession()->has('success'));
+        self::assertTrue($controller->tolak($this->statusRequest('Ditolak'), 1, new PemeriksaanPembayaranPengiriman)->getSession()->has('success'));
         $this->assertState('Ditolak', 10);
-        self::assertTrue($controller->tolak(1)->getSession()->has('error'));
+        self::assertTrue($controller->tolak($this->statusRequest('Ditolak'), 1, new PemeriksaanPembayaranPengiriman)->getSession()->has('error'));
         $this->assertState('Ditolak', 10);
     }
 
     public function test_only_server_payment_status_can_authorize_processing(): void
     {
         $controller = new PesananController;
-        self::assertTrue($controller->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->has('error'));
+        self::assertTrue($controller->updateStatus($this->statusRequest('Diproses'), 1, $this->alur())->getSession()->has('error'));
         $this->assertState('Menunggu', 8);
         $this->database->getConnection()->table('pembayaran')->update([
             'status_pembayaran' => 'Berhasil',
             'midtrans_transaction_id' => 'paid-txn',
             'midtrans_status' => 'settlement',
         ]);
-        self::assertTrue($controller->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->has('success'));
+        self::assertTrue($controller->updateStatus($this->statusRequest('Diproses'), 1, $this->alur())->getSession()->has('success'));
         $this->assertState('Diproses', 8);
-        self::assertTrue($controller->updateStatus($this->statusRequest('Dikirim'), 1)->getSession()->has('success'));
-        self::assertStringContainsString('penerimaan barang', $controller->updateStatus($this->statusRequest('Selesai'), 1)->getSession()->get('error'));
-        $this->assertState('Dikirim', 8);
+
     }
 
-    public function test_confirmed_receipt_can_complete_order(): void
+    public function test_admin_cannot_confirm_receipt_even_with_legacy_checkbox(): void
     {
         $db = $this->database->getConnection();
-
-        $db->table('pesanan')->update([
-            'status_pesanan' => 'Dikirim',
-        ]);
-
-        $db->table('pengiriman')->update([
-            'status_pengiriman' => 'Dikirim',
-            'waktu_dikirim' => '2026-11-24 10:00:00',
-        ]);
-
-        $db->table('pembayaran')->update([
-            'status_pembayaran' => 'Berhasil',
-            'midtrans_transaction_id' => 'paid-txn',
-            'midtrans_status' => 'settlement',
-        ]);
-
+        $db->table('pesanan')->update(['status_pesanan' => 'Dikirim']);
+        $db->table('pengiriman')->update(['status_pengiriman' => 'Dikirim']);
         $request = $this->statusRequest('Selesai');
+        $request->merge(['konfirmasi_penerimaan' => '1']);
 
-        $request->merge([
-            'konfirmasi_penerimaan' => '1',
-        ]);
-
-        $controller = new PesananController;
-
-        self::assertTrue(
-            $controller->updateStatus($request, 1)
-                ->getSession()->has('success')
-        );
-
-        $this->assertState('Selesai', 8);
-
-        self::assertNotNull(
-            $db->table('pengiriman')->value('waktu_selesai')
-        );
+        try {
+            (new PesananController)->updateStatus($request, 1, $this->alur());
+            self::fail('Admin accepted receipt.');
+        } catch (ValidationException $exception) {
+            self::assertArrayHasKey('status_pesanan', $exception->errors());
+        }
+        $this->assertState('Dikirim', 8);
     }
 
     public function test_manual_payment_is_preserved_when_processing_is_denied(): void
@@ -183,10 +163,10 @@ class AdminMidtransOrderGuardTest extends TestCase
         $db->table('pembayaran')->update(['gateway' => 'manual']);
         $before = $db->table('pembayaran')->first();
         $controller = new PesananController;
-        self::assertStringContainsString('pembayaran historis', $controller->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->get('error'));
+        self::assertStringContainsString('pembayaran historis', $controller->updateStatus($this->statusRequest('Diproses'), 1, $this->alur())->getSession()->get('error'));
         $this->assertState('Menunggu', 8);
         self::assertEquals($before, $db->table('pembayaran')->first());
-        self::assertTrue($controller->tolak(1)->getSession()->has('success'));
+        self::assertTrue($controller->tolak($this->statusRequest('Ditolak'), 1, new PemeriksaanPembayaranPengiriman)->getSession()->has('success'));
         $this->assertState('Ditolak', 10);
         self::assertEquals($before, $db->table('pembayaran')->first());
     }
@@ -196,13 +176,13 @@ class AdminMidtransOrderGuardTest extends TestCase
         $db = $this->database->getConnection();
         $db->table('pengiriman')->delete();
         $controller = new PesananController;
-        self::assertStringContainsString('catatan pengiriman', $controller->tolak(1)->getSession()->get('error'));
+        self::assertStringContainsString('catatan pengiriman', $controller->tolak($this->statusRequest('Ditolak'), 1, new PemeriksaanPembayaranPengiriman)->getSession()->get('error'));
         $db->table('pembayaran')->update([
             'status_pembayaran' => 'Berhasil',
             'midtrans_transaction_id' => 'paid-txn',
             'midtrans_status' => 'settlement',
         ]);
-        self::assertStringContainsString('Catatan pengiriman', $controller->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->get('error'));
+        self::assertStringContainsString('Catatan pengiriman', $controller->updateStatus($this->statusRequest('Diproses'), 1, $this->alur())->getSession()->get('error'));
         self::assertSame('Menunggu', $db->table('pesanan')->value('status_pesanan'));
         self::assertSame(8, $db->table('produk')->value('stok'));
     }
@@ -226,22 +206,10 @@ class AdminMidtransOrderGuardTest extends TestCase
             $db->table('pembayaran')->update(['status_pembayaran' => $paymentStatus]);
         }
 
-        $controller = new PesananController;
-        foreach (['Diproses' => 'Dikirim', 'Dikirim' => 'Selesai'] as $current => $target) {
-            $db->table('pesanan')->update(['status_pesanan' => $current]);
-            $db->table('pengiriman')->update(['status_pengiriman' => $current]);
-            $request = $this->statusRequest($target);
-            if ($target === 'Selesai') {
-                $request->merge([
-                    'konfirmasi_penerimaan' => '1',
-                ]);
-            }
-            self::assertTrue(
-                $controller->updateStatus($request, 1)
-                    ->getSession()->has('error')
-            );
-            $this->assertState($current, 8);
+        foreach (['mulai', 'terima'] as $tujuan) {
+            self::assertNotNull((new PemeriksaanPembayaranPengiriman)->hambatanPembayaranMidtrans(Pesanan::findOrFail(1), $tujuan));
         }
+        $this->assertState('Menunggu', 8);
     }
 
     public static function blockingReconciliations(): array
@@ -285,9 +253,9 @@ class AdminMidtransOrderGuardTest extends TestCase
         ];
         $db->table('midtrans_rekonsiliasi')->insert($case);
 
-        $reply = (new PesananController)->updateStatus($this->statusRequest($target), 1);
+        $hambatan = (new PemeriksaanPembayaranPengiriman)->hambatanPembayaranMidtrans(Pesanan::findOrFail(1), $target);
 
-        self::assertStringContainsString('hambatan pemenuhan', $reply->getSession()->get('error'));
+        self::assertStringContainsString('hambatan pemenuhan', $hambatan);
         $this->assertState($current, 8);
         self::assertNull($db->table('pengiriman')->value('waktu_dikirim'));
         self::assertSame($case + ['status_penahanan' => 'ditahan'], (array) $db->table('midtrans_rekonsiliasi')->first());
@@ -305,9 +273,9 @@ class AdminMidtransOrderGuardTest extends TestCase
             'catatan_manual' => 'attempt_unsuccessful',
         ]);
         $controller = new PesananController;
-        self::assertTrue($controller->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->has('success'));
-        self::assertTrue($controller->updateStatus($this->statusRequest('Dikirim'), 1)->getSession()->has('success'));
-        $this->assertState('Dikirim', 8);
+        self::assertTrue($controller->updateStatus($this->statusRequest('Diproses'), 1, $this->alur())->getSession()->has('success'));
+        self::assertNull((new PemeriksaanPembayaranPengiriman)->hambatanPembayaranMidtrans(Pesanan::findOrFail(1), 'mulai'));
+        $this->assertState('Diproses', 8);
         self::assertSame('menunggu', $db->table('midtrans_rekonsiliasi')->value('status_penanganan'));
     }
 
@@ -333,11 +301,11 @@ class AdminMidtransOrderGuardTest extends TestCase
             'catatan_manual' => $reason,
         ]);
 
-        self::assertTrue((new PesananController)->updateStatus($this->statusRequest('Diproses'), 1)->getSession()->has('error'));
+        self::assertTrue((new PesananController)->updateStatus($this->statusRequest('Diproses'), 1, $this->alur())->getSession()->has('error'));
         $this->assertState('Menunggu', 8);
         $db->table('pesanan')->where('id', 1)->update(['status_pesanan' => 'Diproses']);
         $db->table('pengiriman')->where('pesanan_id', 1)->update(['status_pengiriman' => 'Diproses']);
-        self::assertTrue((new PesananController)->updateStatus($this->statusRequest('Dikirim'), 1)->getSession()->has('error'));
+        self::assertNotNull((new PemeriksaanPembayaranPengiriman)->hambatanPembayaranMidtrans(Pesanan::findOrFail(1), 'mulai'));
         $this->assertState('Diproses', 8);
         self::assertNull($db->table('pengiriman')->value('waktu_dikirim'));
         self::assertSame('selesai', $db->table('midtrans_rekonsiliasi')->value('status_penanganan'));
@@ -346,7 +314,7 @@ class AdminMidtransOrderGuardTest extends TestCase
     public function test_update_status_cannot_reject_an_order(): void
     {
         try {
-            (new PesananController)->updateStatus($this->statusRequest('Ditolak'), 1);
+            (new PesananController)->updateStatus($this->statusRequest('Ditolak'), 1, $this->alur());
             self::fail('updateStatus accepted a rejection.');
         } catch (ValidationException $exception) {
             self::assertArrayHasKey('status_pesanan', $exception->errors());
@@ -357,10 +325,18 @@ class AdminMidtransOrderGuardTest extends TestCase
 
     private function statusRequest(string $status): Request
     {
-        return Request::create('/admin/pesanan/1/status', 'PATCH', [
+        $request = Request::create('/admin/pesanan/1/status', 'PATCH', [
             'status_pesanan' => $status,
             'status_pembayaran' => 'Berhasil',
         ]);
+        $request->setUserResolver(fn () => (new User)->forceFill(['id' => 1, 'is_admin' => true]));
+
+        return $request;
+    }
+
+    private function alur(): AlurPengiriman
+    {
+        return new AlurPengiriman(new PemeriksaanPembayaranPengiriman);
     }
 
     private function assertState(string $status, int $stock): void

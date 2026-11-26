@@ -321,11 +321,9 @@
                 <label for="statusPengiriman">Status</label>
                 <select id="statusPengiriman">
                     <option value="">Semua Status</option>
-                    <option value="Menunggu">Menunggu</option>
-                    <option value="Diproses">Diproses</option>
-                    <option value="Dikirim">Dikirim</option>
-                    <option value="Selesai">Selesai</option>
-                    <option value="Ditolak">Ditolak</option>
+                    @foreach(['Belum Dikirim', 'Disiapkan', 'Siap Dikirim', 'Dalam Perjalanan', 'Barang Sampai', 'Diterima', 'Dikirim', 'Selesai', 'Dibatalkan'] as $status)
+                        <option value="{{ $status }}">{{ $status }}</option>
+                    @endforeach
                 </select>
             </div>
 
@@ -360,19 +358,19 @@
                 <tbody>
                     @foreach($pengiriman as $item)
                                 <tr
-                                    data-tanggal="{{ $item->waktu_dikirim ? \Carbon\Carbon::parse($item->waktu_dikirim)->format('Y-m-d') : '' }}">
+                                    data-tanggal="{{ $item->waktu_dikirim?->copy()->timezone(config('toko.timezone'))->format('Y-m-d') ?? '' }}">
                                     <td>{{ $loop->iteration }}</td>
 
                                     <td>{{ $item->pesanan?->kode_pesanan ?? '-' }}</td>
 
                                     <td>
                                         {{ $item->waktu_dikirim
-                        ? \Carbon\Carbon::parse($item->waktu_dikirim)->format('d M Y')
+                        ? $item->waktu_dikirim->copy()->timezone(config('toko.timezone'))->format('d M Y')
                         : '-' }}
 
                                         @if($item->waktu_dikirim)
                                             <span class="pengiriman-subtext">
-                                                {{ \Carbon\Carbon::parse($item->waktu_dikirim)->format('H:i') }}
+                                                {{ $item->waktu_dikirim->copy()->timezone(config('toko.timezone'))->format('H:i') }} WITA
                                             </span>
                                         @endif
                                     </td>
@@ -389,7 +387,7 @@
 
                                     <td>
                                         <span class="pengiriman-status {{ $item->status_pengiriman }}">
-                                            {{ $item->status_pengiriman }}
+                                            {{ $item->tahap() }}
                                         </span>
                                     </td>
 

@@ -11,9 +11,12 @@ use App\Http\Controllers\Pelanggan\ProdukController as ProdukPelangganController
 use App\Http\Middleware\BahasaPelanggan;
 use Illuminate\Support\Facades\Route;
 
+require __DIR__.'/pengiriman.php';
+
 //ini gsn halaman awal
 Route::middleware(BahasaPelanggan::class)->group(function () {
     Route::get('/', [ProdukPelangganController::class, 'beranda'])
+        ->middleware(\App\Http\Middleware\LarangKurir::class)
         ->name('pelanggan.beranda');
 
     require __DIR__ . '/pelanggan.php';

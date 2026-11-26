@@ -34,6 +34,11 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    public function isKurir(): bool
+    {
+        return ! $this->is_admin && (int) ($this->getAttributes()['slot_kurir'] ?? 0) === 1;
+    }
+
     /**
      * Get the attributes that should be cast.
      *

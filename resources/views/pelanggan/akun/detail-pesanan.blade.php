@@ -2,7 +2,7 @@
 @section('title', 'Detail Pesanan')
 @section('akun-content')
     <h1>Detail Pesanan</h1>
-    <div class="status-pesanan"><span>Status pesanan: {{ $pesanan->status_pesanan === 'Ditolak' ? 'Dibatalkan' : $pesanan->status_pesanan }}</span><span>Pembayaran: {{ $pesanan->pembayaran?->status_pembayaran ?? 'Belum tersedia' }}</span><span>Pengiriman: {{ $pesanan->pengiriman?->status_pengiriman === 'Ditolak' ? 'Dibatalkan' : ($pesanan->pengiriman?->status_pengiriman ?? 'Belum tersedia') }}</span></div>
+    <div class="status-pesanan"><span>Status pesanan: {{ $pesanan->status_pesanan === 'Ditolak' ? 'Dibatalkan' : $pesanan->status_pesanan }}</span><span>Pembayaran: {{ $pesanan->pembayaran?->status_pembayaran ?? 'Belum tersedia' }}</span><span>Pengiriman: {{ $pesanan->pengiriman?->tahap() ?? 'Belum tersedia' }}</span></div>
     @if($pesanan->alasanPembatalan())<p role="status">{{ $pesanan->alasanPembatalan() }}</p>@endif
     @if($pesanan->pembayaran?->rekonsiliasiAktif->contains(fn ($kasus) => $kasus->menahanPemenuhan($pesanan->pembayaran)))
         <p role="status">Pembayaran sedang diperiksa.</p>
@@ -28,14 +28,7 @@
     </div>
     @if($pesanan->catatan)<p>Catatan: {{ $pesanan->catatan }}</p>@endif
     @if($pesanan->pengiriman)
-        <section class="informasi-pengiriman">
-            <h2>Informasi Pengiriman</h2>
-            <p><strong>{{ $pesanan->pengiriman->nama_penerima }}</strong> — {{ $pesanan->pengiriman->nomor_telepon }}</p>
-            <p>{{ $pesanan->pengiriman->alamat_pengiriman }}</p>
-            @if($pesanan->pengiriman->waktu_dikirim)<p>Dikirim: {{ $pesanan->pengiriman->waktu_dikirim->copy()->timezone(config('toko.timezone'))->format('d/m/Y H:i') }} WITA</p>@endif
-            @if($pesanan->pengiriman->waktu_selesai)<p>Selesai: {{ $pesanan->pengiriman->waktu_selesai->copy()->timezone(config('toko.timezone'))->format('d/m/Y H:i') }} WITA</p>@endif
-            @if($pesanan->pengiriman->catatan_driver)<p>Catatan driver: {{ $pesanan->pengiriman->catatan_driver }}</p>@endif
-        </section>
+        @include('pelanggan.akun.pengiriman')
     @endif
     @include('pelanggan.partials.hitung-mundur-pembayaran', ['order' => $pesanan])
     <div class="aksi-form">

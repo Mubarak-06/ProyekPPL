@@ -236,7 +236,7 @@
                 <span>:</span>
                 <span class="kirim-detail-value">
                     {{ $pengiriman->waktu_dikirim
-        ? \Carbon\Carbon::parse($pengiriman->waktu_dikirim)->format('d M Y, H:i')
+        ? $pengiriman->waktu_dikirim->copy()->timezone(config('toko.timezone'))->format('d M Y, H:i').' WITA'
         : '-' }}
                 </span>
             </div>
@@ -265,7 +265,7 @@
                 <span>:</span>
                 <span class="kirim-detail-value">
                     <span class="kirim-detail-status {{ $pengiriman->status_pengiriman }}">
-                        {{ $pengiriman->status_pengiriman }}
+                        {{ $pengiriman->tahap() }}
                     </span>
                 </span>
             </div>
@@ -403,4 +403,5 @@
         </div>
     </div>
 
+    @include('admin.pengiriman.operasional')
 @endsection

@@ -54,11 +54,21 @@ class AuthController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
+        if (Auth::user()->isKurir()) {
+            $request->session()->forget('url.intended');
+
+            return redirect()->route('kurir.dashboard');
+        }
+
         // Percobaan membuka admin sebelum login tidak mengalihkan pelanggan ke 403.
         $intended = $request->session()->get('url.intended');
         $adminPath = Str::beforeLast(parse_url(route('admin.dashboard'), PHP_URL_PATH), '/');
         $intendedPath = is_string($intended) ? parse_url($intended, PHP_URL_PATH) : null;
-        if (is_string($intendedPath) && ($intendedPath === $adminPath || Str::startsWith($intendedPath, $adminPath.'/'))) {
+        $kurirPath = parse_url(route('kurir.dashboard'), PHP_URL_PATH);
+        if (is_string($intendedPath) && (
+            $intendedPath === $adminPath || Str::startsWith($intendedPath, $adminPath.'/')
+            || $intendedPath === $kurirPath || Str::startsWith($intendedPath, $kurirPath.'/')
+        )) {
             $request->session()->forget('url.intended');
         }
 
@@ -81,11 +91,11 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $isAdmin = $request->user()?->is_admin;
+        $petugas = $request->user()?->is_admin || $request->user()?->isKurir();
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route($isAdmin ? 'login' : 'pelanggan.beranda');
+        return redirect()->route($petugas ? 'login' : 'pelanggan.beranda');
     }
 }

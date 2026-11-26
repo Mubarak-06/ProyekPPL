@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Services\AlurPengiriman;
 use Illuminate\Database\Eloquent\Model;
 
 class Pesanan extends Model
 {
     // Pemanggil mengunci pesanan dan pembayaran dalam satu transaksi.
-    public function batalkanDanKembalikanStok(): bool
+    public function batalkanDanKembalikanStok(?User $pelaku = null): bool
     {
         if (! in_array($this->status_pesanan, ['Menunggu', 'Diproses'], true)) {
             return false;
@@ -27,7 +28,11 @@ class Pesanan extends Model
             $produk[$item->produk_id]->increment('stok', $item->jumlah);
         }
         $this->update(['status_pesanan' => 'Ditolak']);
-        $this->pengiriman()->update(['status_pengiriman' => 'Ditolak']);
+        if (AlurPengiriman::tersedia()) {
+            app(AlurPengiriman::class)->ubah($pengiriman->first(), $pelaku, 'Dibatalkan', ['status_pengiriman' => 'Ditolak']);
+        } else {
+            $this->pengiriman()->update(['status_pengiriman' => 'Ditolak']);
+        }
 
         return true;
     }

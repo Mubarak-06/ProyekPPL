@@ -22,7 +22,10 @@
                     <td data-label="Status">
                         <span class="badge-status status-{{ strtolower($item->status_pesanan) }}">{{ $item->status_pesanan === 'Ditolak' ? 'Dibatalkan' : $item->status_pesanan }}</span>
                         <small>Pembayaran: {{ $item->pembayaran?->status_pembayaran ?? 'Belum tersedia' }}</small>
-                        <small>Pengiriman: {{ $item->pengiriman?->status_pengiriman === 'Ditolak' ? 'Dibatalkan' : ($item->pengiriman?->status_pengiriman ?? 'Belum tersedia') }}</small>
+                        <small>Pengiriman: {{ $item->pengiriman?->tahap() ?? 'Belum tersedia' }}</small>
+                        @if($item->pengiriman)
+                            <a href="{{ route('pelanggan.pesanan.show', $item) }}#lacak-pengiriman">Lacak Pengiriman</a>
+                        @endif
                         @if($item->alasanPembatalan())<small>{{ $item->alasanPembatalan() }}</small>@endif
                         @if($item->pembayaran?->rekonsiliasiAktif->contains(fn ($kasus) => $kasus->menahanPemenuhan($item->pembayaran)))
                             <small>Pembayaran sedang diperiksa.</small>

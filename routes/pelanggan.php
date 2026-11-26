@@ -5,11 +5,14 @@ use App\Http\Controllers\Pelanggan\AuthController;
 use App\Http\Controllers\Pelanggan\CheckoutController;
 use App\Http\Controllers\Pelanggan\KeranjangController;
 use App\Http\Controllers\Pelanggan\ProdukController;
+use App\Http\Middleware\LarangKurir;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/produk', [ProdukController::class, 'index'])->name('pelanggan.produk');
-Route::get('/produk/{produk}', [ProdukController::class, 'show'])->whereNumber('produk')->name('pelanggan.produk.show');
-Route::view('/tentang-kami', 'pelanggan.tentang')->name('pelanggan.tentang');
+Route::middleware(LarangKurir::class)->group(function () {
+    Route::get('/produk', [ProdukController::class, 'index'])->name('pelanggan.produk');
+    Route::get('/produk/{produk}', [ProdukController::class, 'show'])->whereNumber('produk')->name('pelanggan.produk.show');
+    Route::view('/tentang-kami', 'pelanggan.tentang')->name('pelanggan.tentang');
+});
 
 Route::middleware('guest')->group(function () {
     Route::view('/login', 'pelanggan.auth.login')->name('login');
@@ -22,14 +25,17 @@ Route::middleware('guest')->group(function () {
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1')->name('password.update');
 });
 
-Route::get('/keranjang', [KeranjangController::class, 'index'])->name('pelanggan.keranjang');
-Route::post('/keranjang/pilihan', [KeranjangController::class, 'pilih'])->block(60, 30)->name('pelanggan.keranjang.pilih');
-Route::post('/keranjang/{produk}', [KeranjangController::class, 'store'])->whereNumber('produk')->block(60, 30)->name('pelanggan.keranjang.store');
-Route::put('/keranjang/{produk}', [KeranjangController::class, 'update'])->whereNumber('produk')->block(60, 30)->name('pelanggan.keranjang.update');
-Route::delete('/keranjang/{id}', [KeranjangController::class, 'destroy'])->whereNumber('id')->block(60, 30)->name('pelanggan.keranjang.destroy');
+Route::middleware(LarangKurir::class)->group(function () {
+    Route::get('/keranjang', [KeranjangController::class, 'index'])->name('pelanggan.keranjang');
+    Route::post('/keranjang/pilihan', [KeranjangController::class, 'pilih'])->block(60, 30)->name('pelanggan.keranjang.pilih');
+    Route::post('/keranjang/{produk}', [KeranjangController::class, 'store'])->whereNumber('produk')->block(60, 30)->name('pelanggan.keranjang.store');
+    Route::put('/keranjang/{produk}', [KeranjangController::class, 'update'])->whereNumber('produk')->block(60, 30)->name('pelanggan.keranjang.update');
+    Route::delete('/keranjang/{id}', [KeranjangController::class, 'destroy'])->whereNumber('id')->block(60, 30)->name('pelanggan.keranjang.destroy');
+});
 
-Route::middleware('auth')->name('pelanggan.')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('pelanggan.logout');
+
+Route::middleware(['auth', LarangKurir::class])->name('pelanggan.')->group(function () {
     Route::get('/checkout', [CheckoutController::class, 'index'])->block(60, 30)->name('checkout');
     Route::post('/checkout', [CheckoutController::class, 'store'])->block(60, 30)->name('checkout.store');
     Route::get('/akun', [AkunController::class, 'profil'])->name('profil');

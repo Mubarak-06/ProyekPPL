@@ -277,17 +277,24 @@ class AkunController extends Controller
 
     }
 
-    public function detailPesanan(Request $request, $id, MidtransPaymentCoordinator $coordinator)
+    public function detailPesanan(Request $request, $id, MidtransPaymentCoordinator $coordinator, \App\Services\PemeriksaanPembayaranPengiriman $pemeriksaan)
     {
         $pesanan = Pesanan::with('detailPesanan', 'pembayaran.rekonsiliasiAktif', 'pengiriman')
             ->where('user_id', $request->user()->id)->findOrFail($id);
+        if ($pesanan->pengiriman?->tahap_kurir) {
+            $pesanan->pengiriman->load(['riwayat', 'kendala']);
+        }
         $metode = $pesanan->pembayaran
             ? DB::table('metode_pembayaran')->find($pesanan->pembayaran->metode_pembayaran_id)
             : null;
 
         $bisaDibayar = $coordinator->canOfferPayment($pesanan);
+        $bisaTerimaHistoris = $pesanan->status_pesanan === 'Dikirim'
+            && $pesanan->pengiriman?->dikirimHistoris()
+            && \App\Services\AlurPengiriman::tersedia()
+            && ! $pemeriksaan->hambatanPembayaranMidtrans($pesanan, 'terima', kunci: false);
 
-        return view('pelanggan.akun.detail-pesanan', compact('pesanan', 'metode', 'bisaDibayar'));
+        return view('pelanggan.akun.detail-pesanan', compact('pesanan', 'metode', 'bisaDibayar', 'bisaTerimaHistoris'));
     }
 
     public function unggahBukti(Request $request, $id)

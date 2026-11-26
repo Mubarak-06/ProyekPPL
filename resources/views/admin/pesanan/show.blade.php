@@ -531,14 +531,12 @@
 
             <div class="detail-card">
                 <h3 class="detail-card-title">Ubah Status Pesanan</h3>
+                @if($pesanan->pengiriman)
+                    <p><a href="{{ route('admin.pengiriman.show', $pesanan->pengiriman) }}">Lihat dan Kelola Pengiriman</a></p>
+                @endif
 
                 @php
-                    $pilihanStatus = match($pesanan->status_pesanan) {
-                        'Menunggu' => ['Diproses'],
-                        'Diproses' => ['Dikirim'],
-                        'Dikirim' => ['Selesai'],
-                        default => []
-                    };
+                    $pilihanStatus = $pesanan->status_pesanan === 'Menunggu' && ! $hambatanProses ? ['Diproses'] : [];
 
                     $bolehDitolak = in_array(
                         $pesanan->status_pesanan,
@@ -557,10 +555,12 @@
                 @elseif($pesanan->status_pesanan === 'Menunggu' && $pesanan->pembayaran?->gateway === 'midtrans')
                     <p>Stok reservasi masih ditahan.</p>
                 @elseif($pesanan->status_pesanan === 'Dikirim')
-                    <p>Ubah status menjadi Selesai apabila barang telah diterima pelanggan.</p>
+                    <p>Pelanggan menyelesaikan pesanan setelah kurir mencatat penyerahan.</p>
                 @endif
                 @if($pesanan->pembayaran?->rekonsiliasiAktif->contains(fn ($kasus) => $kasus->menahanPemenuhan($pesanan->pembayaran)))
                     <p role="status">Pembayaran sedang diperiksa melalui rekonsiliasi.</p>
+                @elseif($hambatanProses)
+                    <p role="status">{{ $hambatanProses }}</p>
                 @endif
 
                 <form
@@ -591,23 +591,6 @@
                             </option>
                         @endforeach
                     </select>
-
-                    @if($pesanan->status_pesanan === 'Dikirim')
-                        <div style="margin-top: 12px; margin-bottom: 12px;">
-                            <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 12px; cursor: pointer;">
-                                <input
-                                    type="checkbox"
-                                    name="konfirmasi_penerimaan"
-                                    value="1"
-                                    required
-                                    style="margin-top: 3px; accent-color: #008A50;"
-                                >
-                                <span>
-                                    Saya mengonfirmasi bahwa barang telah diterima oleh pelanggan.
-                                </span>
-                            </label>
-                        </div>
-                    @endif
 
                     <button
                         type="submit"
@@ -684,7 +667,7 @@
                     <span class="detail-info-label">Status Pengiriman</span>
                     <span>:</span>
                     <span class="detail-info-value">
-                        {{ $pesanan->pengiriman?->status_pengiriman ?? 'Belum tersedia' }}
+                        {{ $pesanan->pengiriman?->tahap() ?? 'Belum tersedia' }}
                     </span>
                 </div>
 
@@ -701,7 +684,7 @@
                     <span>:</span>
                     <span class="detail-info-value">
                         {{ $pesanan->pengiriman?->waktu_dikirim
-                            ? \Carbon\Carbon::parse($pesanan->pengiriman->waktu_dikirim)->format('d M Y H:i')
+                            ? $pesanan->pengiriman->waktu_dikirim->copy()->timezone(config('toko.timezone'))->format('d M Y H:i').' WITA'
                             : '-' }}
                     </span>
                 </div>

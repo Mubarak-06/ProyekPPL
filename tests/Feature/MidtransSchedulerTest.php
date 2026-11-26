@@ -88,7 +88,7 @@ class MidtransSchedulerTest extends PelangganTestCase
             ->assertSee('Pembayaran kedaluwarsa')->assertDontSee('Buka pembayaran Snap');
         $this->postJson('/pesanan/'.$order->id.'/pembayaran/snap')->assertExactJson(['status' => 'rejected']);
         $this->actingAs($this->akunAdmin())->patch('/admin/pesanan/'.$order->id.'/status', ['status_pesanan' => 'Dikirim'])
-            ->assertSessionHas('error');
+            ->assertSessionHasErrors('status_pesanan');
         Log::shouldHaveReceived('info')->with('Midtrans Sandbox sync skipped', ['reason' => 'already_running'])->once();
         foreach ([[4, 2], [2, 0]] as [$checked, $synced]) {
             Log::shouldHaveReceived('info')->with('Midtrans Sandbox sync completed', [

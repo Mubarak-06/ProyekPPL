@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Pengiriman;
+use App\Models\User;
+use App\Services\AlurPengiriman;
+use App\Services\PemeriksaanPembayaranPengiriman;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -18,15 +21,24 @@ class PengirimanController extends Controller
 
         return view('admin.pengiriman.index', compact('pengiriman'));
     }
-    public function show($id)
+    public function show($id, PemeriksaanPembayaranPengiriman $pemeriksaan)
     {
         $pengiriman = \App\Models\Pengiriman::with([
             'pesanan.user',
             'pesanan.alamat',
             'pesanan.detailPesanan.produk.material',
+            'pesanan.pembayaran',
         ])->findOrFail($id);
 
-        return view('admin.pengiriman.show', compact('pengiriman'));
+        $alurTersedia = AlurPengiriman::tersedia();
+        if ($alurTersedia) {
+            $pengiriman->load(['riwayat.pelaku', 'kendala']);
+        }
+        $kurirTersedia = $alurTersedia && User::where('slot_kurir', 1)->where('is_admin', false)->exists();
+        $siapDitugaskan = $pengiriman->pesanan->status_pesanan === 'Diproses'
+            && ! $pemeriksaan->hambatanPembayaranMidtrans($pengiriman->pesanan, 'siapkan', kunci: false);
+
+        return view('admin.pengiriman.show', compact('pengiriman', 'alurTersedia', 'kurirTersedia', 'siapDitugaskan'));
     }
     public function dataMaster()
     {

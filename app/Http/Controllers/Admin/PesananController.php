@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\MidtransRekonsiliasi;
 use App\Models\Pesanan;
+use App\Services\AlurPengiriman;
+use App\Services\PemeriksaanPembayaranPengiriman;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class PesananController extends Controller
 {
@@ -38,7 +38,7 @@ class PesananController extends Controller
         ));
     }
 
-    public function show($id)
+    public function show($id, PemeriksaanPembayaranPengiriman $pemeriksaan)
     {
         $pesanan = Pesanan::with([
             'user',
@@ -48,84 +48,23 @@ class PesananController extends Controller
             'pengiriman',
         ])->findOrFail($id);
 
-        return view('admin.pesanan.show', compact('pesanan'));
+        $hambatanProses = $pesanan->status_pesanan === 'Menunggu'
+            ? $pemeriksaan->hambatanPembayaranMidtrans($pesanan, 'Diproses', kunci: false)
+            : null;
+
+        return view('admin.pesanan.show', compact('pesanan', 'hambatanProses'));
     }
 
-    public function updateStatus(Request $request, $id)
+    public function updateStatus(Request $request, $id, AlurPengiriman $alur)
     {
-        $request->validate([
-            'status_pesanan' => [
-                'required',
-                Rule::in(['Diproses', 'Dikirim', 'Selesai']),
-            ],
-        ]);
+        $request->validate(['status_pesanan' => 'required|in:Diproses']);
 
-        $transisi = [
-            'Menunggu' => ['Diproses'],
-            'Diproses' => ['Dikirim'],
-            'Dikirim' => ['Selesai'],
-            'Selesai' => [],
-            'Ditolak' => [],
-        ];
-
-        return DB::transaction(function () use ($request, $id, $transisi) {
-            $pesanan = Pesanan::whereKey($id)->lockForUpdate()->firstOrFail();
-
-            $statusLama = $pesanan->status_pesanan;
-            $statusBaru = $request->input('status_pesanan');
-
-            if (!in_array($statusBaru, $transisi[$statusLama] ?? [], true)) {
-                return back()->with(
-                    'error',
-                    'Perubahan status pesanan tidak diizinkan.'
-                );
-            }
-
-            if ($pesan = $this->hambatanPembayaranMidtrans($pesanan, $statusBaru)) {
-                return back()->with('error', $pesan);
-            }
-            $pengiriman = $pesanan->pengiriman()->lockForUpdate()->get();
-            if ($pengiriman->count() !== 1 || $pengiriman->first()->status_pengiriman !== $statusLama) {
-                return back()->with('error', 'Catatan pengiriman tidak tersedia atau tidak sesuai dengan status pesanan.');
-            }
-
-            if ($statusBaru === 'Selesai' && !$request->boolean('konfirmasi_penerimaan')) {
-                return back()->with(
-                    'error',
-                    'Pesanan hanya dapat diselesaikan setelah penerimaan barang dikonfirmasi.'
-                );
-            }
-
-            $pesanan->update([
-                'status_pesanan' => $statusBaru,
-            ]);
-
-            $perubahanPengiriman = [
-                'status_pengiriman' => $statusBaru,
-            ];
-
-            if ($statusBaru === 'Dikirim') {
-                $perubahanPengiriman['waktu_dikirim'] = now();
-            }
-
-            if ($statusBaru === 'Selesai') {
-                $perubahanPengiriman['waktu_selesai'] = now();
-            }
-
-            DB::table('pengiriman')
-                ->where('pesanan_id', $pesanan->id)
-                ->update($perubahanPengiriman);
-
-            return back()->with(
-                'success',
-                'Status pesanan berhasil diperbarui.'
-            );
-        }, 3);
+        return $alur->proses($request->user(), (int) $id);
     }
 
-    public function tolak($id)
+    public function tolak(Request $request, $id, PemeriksaanPembayaranPengiriman $pemeriksaan)
     {
-        return DB::transaction(function () use ($id) {
+        return DB::transaction(function () use ($id, $request, $pemeriksaan) {
             $pesanan = Pesanan::whereKey($id)->lockForUpdate()->firstOrFail();
 
             if (!in_array($pesanan->status_pesanan, ['Menunggu', 'Diproses'], true)) {
@@ -135,11 +74,11 @@ class PesananController extends Controller
                 );
             }
 
-            if ($pesan = $this->hambatanPembayaranMidtrans($pesanan, 'Ditolak')) {
+            if ($pesan = $pemeriksaan->hambatanPembayaranMidtrans($pesanan, 'Ditolak')) {
                 return back()->with('error', $pesan);
             }
 
-            if (!$pesanan->batalkanDanKembalikanStok()) {
+            if (!$pesanan->batalkanDanKembalikanStok($request->user())) {
                 return back()->with('error', 'Pesanan belum dapat dibatalkan. Periksa detail barang dan catatan pengiriman.');
             }
 
@@ -148,69 +87,5 @@ class PesananController extends Controller
                 'Pesanan berhasil ditolak.'
             );
         }, 3);
-    }
-
-    private function hambatanPembayaranMidtrans(Pesanan $pesanan, string $tujuan): ?string
-    {
-        $pembayaranPesanan = $pesanan->pembayaran()->orderBy('id')->lockForUpdate()->get();
-        if ($pembayaranPesanan->count() > 1) {
-            return 'Pesanan memiliki beberapa catatan pembayaran. Periksa catatan sebelum mengubah status.';
-        }
-        if (
-            $tujuan === 'Ditolak' && $pembayaranPesanan->contains(
-                fn($item) => $item->status_pembayaran === 'Berhasil' || $item->waktu_pembayaran !== null
-            )
-        ) {
-            return 'Penolakan ditahan karena pembayaran telah tercatat. Selesaikan penanganan dana terlebih dahulu.';
-        }
-        $pembayaran = $pembayaranPesanan->firstWhere('gateway', 'midtrans');
-
-        if ($pembayaran === null) {
-            if ($tujuan === 'Ditolak') {
-                return null;
-            }
-
-            return $pembayaranPesanan->isEmpty()
-                ? 'Status pesanan tidak dapat dilanjutkan karena catatan pembayaran tidak ditemukan.'
-                : 'Status pesanan tidak dapat dilanjutkan karena pembayaran historis ini tidak memiliki verifikasi Midtrans. Hubungi pengelola untuk meninjau pesanan.';
-        }
-
-        if ($tujuan !== 'Ditolak') {
-            if (
-                $pembayaran->status_pembayaran !== 'Berhasil' || blank($pembayaran->midtrans_transaction_id)
-                || !in_array($pembayaran->midtrans_status, ['settlement', 'capture'], true)
-            ) {
-                return 'Pesanan hanya dapat diproses, dikirim, atau diselesaikan setelah pembayaran Midtrans terverifikasi berhasil.';
-            }
-
-            $kasusPembayaran = MidtransRekonsiliasi::where('pembayaran_id', $pembayaran->getKey())
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->get();
-
-            foreach ($kasusPembayaran as $kasus) {
-                if ($kasus->menahanPemenuhan($pembayaran)) {
-                    return 'Tindakan ditahan karena masih ada hambatan pemenuhan pembayaran Midtrans.';
-                }
-            }
-
-            return null;
-        }
-
-        if (
-            $pembayaran->status_pembayaran !== 'Menunggu'
-            || $pembayaran->snap_requested_at !== null
-            || $pembayaran->getRawOriginal('snap_token') !== null
-            || $pembayaran->getRawOriginal('snap_redirect_url') !== null
-            || $pembayaran->snap_token_expires_at !== null
-            || $pembayaran->midtrans_transaction_id !== null
-            || $pembayaran->midtrans_status !== null
-            || $pembayaran->midtrans_payment_type !== null
-            || MidtransRekonsiliasi::where('pembayaran_id', $pembayaran->getKey())->exists()
-        ) {
-            return 'Penolakan ditahan. Pastikan sesi dan pembayaran Midtrans telah diperiksa melalui rekonsiliasi.';
-        }
-
-        return null;
     }
 }

@@ -13,7 +13,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectUsersTo(fn (\Illuminate\Http\Request $request) =>
-            route($request->user()?->is_admin ? 'admin.dashboard' : 'pelanggan.profil')
+            route(match (true) {
+                (bool) $request->user()?->is_admin => 'admin.dashboard',
+                (bool) $request->user()?->isKurir() => 'kurir.dashboard',
+                default => 'pelanggan.profil',
+            })
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
